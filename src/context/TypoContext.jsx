@@ -41,11 +41,12 @@ export const TypoProvider = ({ children }) => {
         fallback: Math.round(baseFontSize * (fontScales.fallback / 100))
     };
 
-    const [lineHeight, setLineHeight] = useState(1.5);
+    const [lineHeight, setLineHeight] = useState(1);
     const [textCase, setTextCase] = useState('none');
     const [viewMode, setViewMode] = useState('h1');
     const [gridColumns, setGridColumns] = useState(1);
     const [lineHeightOverrides, setLineHeightOverrides] = useState({});
+    const [fallbackScaleOverrides, setFallbackScaleOverrides] = useState({});
     const [colors, setColors] = useState({
         primary: '#0f172a',
         missing: '#ff0000',
@@ -77,6 +78,17 @@ export const TypoProvider = ({ children }) => {
         setLineHeightOverrides({});
     };
 
+    const updateFallbackScaleOverride = (langId, value) => {
+        setFallbackScaleOverrides(prev => ({
+            ...prev,
+            [langId]: value
+        }));
+    };
+
+    const resetAllFallbackScaleOverrides = () => {
+        setFallbackScaleOverrides({});
+    };
+
     return (
         <TypoContext.Provider value={{
             fontObject,
@@ -97,6 +109,9 @@ export const TypoProvider = ({ children }) => {
             lineHeightOverrides,
             updateLineHeightOverride,
             resetAllLineHeightOverrides,
+            fallbackScaleOverrides,
+            updateFallbackScaleOverride,
+            resetAllFallbackScaleOverrides,
             gridColumns,
             setGridColumns,
             textCase,

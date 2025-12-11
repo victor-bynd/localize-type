@@ -4,11 +4,27 @@ A beautiful web application for testing and previewing fonts across different la
 
 ## Features
 
-- 🎨 Custom font upload and preview
-- 🌍 Multi-language support with diverse writing systems
-- ⚙️ Real-time text customization (size, weight, spacing, etc.)
-- 📱 Responsive design
-- 🎯 Interactive language cards with sample text
+- 🎨 **Custom font upload and preview**
+- 🌍 **Multi-language support** with diverse writing systems (11 languages)
+  - Latin (English, Lithuanian, Vietnamese)
+  - Greek, Cyrillic (Russian), Arabic (RTL)
+  - Indic scripts (Bengali, Kannada, Telugu)
+  - CJK (Chinese Simplified, Japanese)
+- ⚙️ **Real-time text customization**
+  - Font size scaling (active and fallback fonts)
+  - Line height control (global and per-language)
+  - **Language-specific fallback font scaling** (50-200%)
+  - Text case transformation
+  - Letter spacing and word spacing
+- 📊 **Header size presets** (H1-H6) with custom scaling
+- 📝 **Custom text editing** per language
+- 📱 **Responsive design** with multi-column grid layout
+- 🎯 **Interactive language cards** with:
+  - Missing glyph detection and highlighting
+  - Support percentage calculation
+  - Per-language line height overrides
+  - Per-language fallback font scale overrides
+  - Responsive slider controls
 
 ## Live Demo
 
@@ -58,10 +74,17 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to D
 ## Tech Stack
 
 - **Frontend:** React 19
-- **Build Tool:** Vite
+- **Build Tool:** Vite 7
 - **Styling:** TailwindCSS 4
 - **Font Parsing:** OpenType.js
 - **Deployment:** DigitalOcean App Platform
+
+## Recent Updates
+
+- ✨ Added language-specific fallback font scaling (50-200%)
+- 🌏 Added Kannada and Telugu language support
+- 🎚️ Responsive slider controls with automatic stacking
+- 📏 Improved line height controls (default: 1.0)
 
 ## License
 

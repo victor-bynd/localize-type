@@ -53,5 +53,17 @@
     "name": "Japanese (Kanji/Hiragana/Katakana)",
     "script": "Kana/Kanji",
     "pangram": "Snapchatの月間アクティブユーザー数が2億5000万人に達した。"
+  },
+  {
+    "id": "kn-IN",
+    "name": "Kannada (Indic Script)",
+    "script": "Kannada",
+    "pangram": "Snapchat ತಿಂಗಳಿಗೆ 250 ಮಿಲಿಯನ್ ಸಕ್ರಿಯ ಬಳಕೆದಾರರನ್ನು ತಲುಪುತ್ತದೆ"
+  },
+  {
+    "id": "te-IN",
+    "name": "Telugu (Indic Script)",
+    "script": "Telugu",
+    "pangram": "Snapchat నెలవారీ క్రియాశీల వినియోగదారులు 250 మిలియన్లకు చేరుకుంది"
   }
 ]

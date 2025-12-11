@@ -10,6 +10,8 @@ const LanguageCard = ({ language }) => {
         lineHeight,
         lineHeightOverrides,
         updateLineHeightOverride,
+        fallbackScaleOverrides,
+        updateFallbackScaleOverride,
         textCase,
         fallbackOptions,
         viewMode,
@@ -59,6 +61,9 @@ const LanguageCard = ({ language }) => {
             const isMissing = glyphIndex === 0;
 
             if (isMissing) {
+                // Apply language-specific fallback scale override
+                const scaleMultiplier = (fallbackScaleOverrides[language.id] || 100) / 100;
+
                 return (
                     <span
                         key={index}
@@ -66,7 +71,7 @@ const LanguageCard = ({ language }) => {
                             fontFamily: fallbackFont,
                             color: colors.missing,
                             backgroundColor: colors.missingBg,
-                            fontSize: `${fontSizes.fallback / fontSizes.active}em`,
+                            fontSize: `${(fontSizes.fallback / fontSizes.active) * scaleMultiplier}em`,
                         }}
                         className="rounded"
                     >
@@ -77,7 +82,7 @@ const LanguageCard = ({ language }) => {
 
             return <span key={index}>{char}</span>;
         });
-    }, [fontObject, contentToRender, fallbackFont, colors, fontSizes]);
+    }, [fontObject, contentToRender, fallbackFont, colors, fontSizes, fallbackScaleOverrides, language.id]);
 
     if (!fontObject) return null;
 
@@ -154,33 +159,66 @@ const LanguageCard = ({ language }) => {
                 </div>
             )}
 
-            {/* Local Line Height Override Slider */}
-            <div className="px-5 py-2 bg-slate-50/30 border-b border-gray-100/50 grid grid-cols-[1fr_auto_1fr] items-center gap-3 overflow-hidden group hover:bg-slate-50/80 transition-colors">
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider whitespace-nowrap justify-self-start">
-                    Line Height: {lineHeightOverrides[language.id] || 'Global'}
-                </span>
+            {/* Local Line Height & Fallback Scale Override Sliders */}
+            <div className="px-5 py-2 bg-slate-50/30 border-b border-gray-100/50 flex flex-wrap items-center gap-x-[42px] gap-y-3 overflow-hidden group hover:bg-slate-50/80 transition-colors">
+                {/* Line Height Slider */}
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider whitespace-nowrap min-w-[80px]">
+                        Line Height: {lineHeightOverrides[language.id] || 'Global'}
+                    </span>
 
-                <input
-                    type="range"
-                    min="0.8"
-                    max="3.0"
-                    step="0.1"
-                    value={lineHeightOverrides[language.id] || lineHeight}
-                    onChange={(e) => updateLineHeightOverride(language.id, parseFloat(e.target.value))}
-                    className="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity justify-self-center"
-                    title="Override line height for this language"
-                />
+                    <input
+                        type="range"
+                        min="0.8"
+                        max="3.0"
+                        step="0.1"
+                        value={lineHeightOverrides[language.id] || lineHeight}
+                        onChange={(e) => updateLineHeightOverride(language.id, parseFloat(e.target.value))}
+                        className="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity"
+                        title="Override line height for this language"
+                    />
 
-                <div className="justify-self-end w-4 flex justify-end">
-                    {lineHeightOverrides[language.id] !== undefined && (
-                        <button
-                            onClick={() => updateLineHeightOverride(language.id, undefined)}
-                            className="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1"
-                            title="Reset to global default"
-                        >
-                            ×
-                        </button>
-                    )}
+                    <div className="w-4 flex justify-end">
+                        {lineHeightOverrides[language.id] !== undefined && (
+                            <button
+                                onClick={() => updateLineHeightOverride(language.id, undefined)}
+                                className="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1"
+                                title="Reset to global default"
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Fallback Scale Slider */}
+                <div className="flex items-center gap-3">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider whitespace-nowrap min-w-[100px]">
+                        Fallback Scale: {fallbackScaleOverrides[language.id] ? `${fallbackScaleOverrides[language.id]}%` : 'Global'}
+                    </span>
+
+                    <input
+                        type="range"
+                        min="50"
+                        max="200"
+                        step="5"
+                        value={fallbackScaleOverrides[language.id] || 100}
+                        onChange={(e) => updateFallbackScaleOverride(language.id, parseFloat(e.target.value))}
+                        className="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500 opacity-50 group-hover:opacity-100 transition-opacity"
+                        title="Override fallback font scale for this language"
+                    />
+
+                    <div className="w-4 flex justify-end">
+                        {fallbackScaleOverrides[language.id] !== undefined && (
+                            <button
+                                onClick={() => updateFallbackScaleOverride(language.id, undefined)}
+                                className="text-[10px] text-rose-500 hover:text-rose-700 font-bold px-1"
+                                title="Reset to global default"
+                            >
+                                ×
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 

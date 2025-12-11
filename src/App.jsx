@@ -41,7 +41,7 @@ const MainContent = () => {
         <div className="p-8 md:p-10">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-gray-800">Visualization Matrix</h1>
+              <h1 className="text-3xl font-bold text-gray-800">Languages</h1>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 items-center">
