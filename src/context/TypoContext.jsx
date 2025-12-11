@@ -41,7 +41,7 @@ export const TypoProvider = ({ children }) => {
         fallback: Math.round(baseFontSize * (fontScales.fallback / 100))
     };
 
-    const [lineHeight, setLineHeight] = useState(1);
+    const [lineHeight, setLineHeight] = useState(1.2);
     const [textCase, setTextCase] = useState('none');
     const [viewMode, setViewMode] = useState('h1');
     const [gridColumns, setGridColumns] = useState(1);

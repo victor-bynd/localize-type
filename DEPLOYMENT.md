@@ -45,115 +45,126 @@ Before you begin, make sure you have:
 
 ## Deploying to App Platform
 
-### Step 1: Push Your Code to Git
+### Step 1: Verify Your Configuration File
 
-If you haven't already, push your code to a Git repository:
+> [!IMPORTANT]
+> **CRITICAL**: Your `.do/app.yaml` must be configured correctly for static site deployment.
 
-\`\`\`bash
-# Initialize git (if not already done)
-git init
+Open `.do/app.yaml` and verify it looks like this:
 
-# Add all files
+```yaml
+name: localize-type
+region: nyc
+
+static_sites:
+  - name: localize-type-web
+    github:
+      repo: YOUR_GITHUB_USERNAME/localize-type  # ← Update with your repo!
+      branch: main
+      deploy_on_push: true
+    
+    build_command: npm run build
+    output_dir: dist
+    
+    routes:
+      - path: /
+    
+    catchall_document: index.html
+```
+
+> [!WARNING]
+> **DO NOT** include `environment_slug: node-js` in your configuration! This will cause deployment to fail with "Missing start command" errors. Static sites don't need this setting.
+
+**Update the repository path:**
+1. Replace `YOUR_GITHUB_USERNAME/localize-type` with your actual repository
+   - Example: `johndoe/localize-type`
+2. Verify the branch name (usually `main` or `master`)
+
+---
+
+### Step 2: Push Your Code to Git
+
+Commit and push your configuration:
+
+```bash
+# Add all files (including .do/app.yaml)
 git add .
 
 # Commit your changes
 git commit -m "Prepare for DigitalOcean deployment"
 
-# Add your remote repository (replace with your repo URL)
-git remote add origin https://github.com/YOUR_USERNAME/localize-type.git
-
-# Push to GitHub
-git push -u origin main
-\`\`\`
+# Push to GitHub (if not already done)
+git push origin main
+```
 
 > [!IMPORTANT]
-> Make sure the `.do/app.yaml` file is committed to your repository!
-
----
-
-### Step 2: Update Configuration File
-
-Before deploying, update the `.do/app.yaml` file:
-
-1. Open `.do/app.yaml`
-2. Replace `YOUR_GITHUB_USERNAME/localize-type` with your actual repository path
-   - Example: `johndoe/localize-type`
-3. Verify the branch name matches your repository (usually `main` or `master`)
-
-\`\`\`yaml
-github:
-  repo: YOUR_GITHUB_USERNAME/localize-type  # ← Update this!
-  branch: main  # ← Verify this matches your branch
-\`\`\`
-
-4. Commit and push this change:
-
-\`\`\`bash
-git add .do/app.yaml
-git commit -m "Update deployment configuration"
-git push
-\`\`\`
+> Make sure the `.do/app.yaml` file is committed and pushed to your repository!
 
 ---
 
 ### Step 3: Create App on DigitalOcean
 
-1. **Log in to DigitalOcean**
-   - Go to [cloud.digitalocean.com](https://cloud.digitalocean.com/)
+1. **Go to DigitalOcean**
+   - Visit [cloud.digitalocean.com](https://cloud.digitalocean.com/)
    - Sign in to your account
 
 2. **Create New App**
-   - Click the **"Create"** button in the top right
-   - Select **"Apps"** from the dropdown
+   - Click **"Create"** (top right)
+   - Select **"Apps"**
 
 3. **Connect Your Repository**
-   - Choose your Git provider (GitHub, GitLab, or Bitbucket)
-   - Click **"Authorize DigitalOcean"** and follow the prompts
+   - Choose **GitHub** (or your Git provider)
+   - Click **"Authorize DigitalOcean"** and grant access
    - Select your repository: `localize-type`
-   - Choose the branch: `main` (or your default branch)
+   - Select branch: `main`
    - Click **"Next"**
 
-4. **Configure Your App**
-   - DigitalOcean will automatically detect the `.do/app.yaml` file
+4. **Review Configuration**
+   - DigitalOcean will auto-detect `.do/app.yaml`
    - You should see: ✅ **"App Spec Detected"**
-   - Review the configuration:
+   - Verify the settings:
+     - **Type:** Static Site ✅
      - **Name:** localize-type-web
      - **Build Command:** `npm run build`
      - **Output Directory:** `dist`
    - Click **"Next"**
 
-5. **Choose Your Plan**
-   - Select **"Starter"** (Free for static sites)
+5. **Choose Plan**
+   - Select **"Starter"** (FREE for static sites)
    - Click **"Next"**
 
-6. **Review and Launch**
+6. **Launch**
    - Review all settings
    - Click **"Create Resources"**
 
 ---
 
-### Step 4: Wait for Deployment
+### Step 4: Monitor Deployment
 
-- DigitalOcean will now build and deploy your app
-- This typically takes **3-5 minutes**
-- You can watch the build logs in real-time
+Watch the build process (takes 3-5 minutes):
 
-**Build Process:**
-1. ✅ Cloning repository
-2. ✅ Installing dependencies (`npm install`)
-3. ✅ Building application (`npm run build`)
-4. ✅ Deploying to CDN
+1. ✅ **Cloning repository** from GitHub
+2. ✅ **Installing dependencies** (`npm install`)
+3. ✅ **Building static site** (`npm run build`)
+4. ✅ **Deploying to CDN**
+
+**What to look for:**
+- Build logs should show "Building static site"
+- No errors about "start command" or "port 8080"
+- Final status: ✅ **Deployment successful**
 
 ---
 
 ### Step 5: Access Your Live App
 
-Once deployment is complete:
+Once complete:
 
-1. You'll see a **green checkmark** ✅ next to your app
-2. Your app URL will be displayed:
+1. You'll see ✅ **green checkmark** next to your app
+2. Your live URL will be displayed:
    - Format: `https://localize-type-web-xxxxx.ondigitalocean.app`
-3. Click the URL to view your live application!
+3. Click the URL to view your application!
+
+🎉 **Your app is now live!**
 
 ---
 
@@ -310,6 +321,44 @@ certbot --nginx -d yourdomain.com -d www.yourdomain.com
 ---
 
 ## Troubleshooting
+
+### ❌ "Missing start command" Error (MOST COMMON)
+
+**Problem:** Deployment fails with errors:
+- "Missing start command"
+- "Incorrect start script configuration"
+- "Port binding issue" (looking for port 8080)
+
+**Root Cause:** Your `.do/app.yaml` contains `environment_slug: node-js`, which tells DigitalOcean to treat your static site as a Node.js service.
+
+**Solution:**
+
+1. Open `.do/app.yaml`
+2. **Remove** the line `environment_slug: node-js`
+3. Your config should look like this:
+
+\`\`\`yaml
+static_sites:
+  - name: localize-type-web
+    build_command: npm run build
+    output_dir: dist
+    catchall_document: index.html
+    # NO environment_slug line!
+\`\`\`
+
+4. Commit and push:
+\`\`\`bash
+git add .do/app.yaml
+git commit -m "Fix: Remove environment_slug for static site deployment"
+git push origin main
+\`\`\`
+
+5. Redeploy (automatic if auto-deploy is enabled, or manually trigger rebuild)
+
+\u003e [!IMPORTANT]
+\u003e Static sites don't need `environment_slug`. This setting is only for backend services/APIs.
+
+---
 
 ### Build Fails
 
