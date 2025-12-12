@@ -129,9 +129,9 @@ const Controller = () => {
 
                             {/* Letter Spacing Slider */}
                             <div>
-                                <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                <div className="flex justify-between text-xs text-slate-600 mb-1">
                                     <span>Letter Spacing</span>
-                                    <span className="font-mono">{letterSpacing}em</span>
+                                    <span>{letterSpacing}em</span>
                                 </div>
                                 <input
                                     type="range"
