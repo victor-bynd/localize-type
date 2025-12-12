@@ -1,5 +1,5 @@
 import { useTypo } from '../context/TypoContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SidebarHeaderConfig from './SidebarHeaderConfig';
 import FontTabs from './FontTabs';
 import CSSExporter from './CSSExporter';
@@ -25,6 +25,14 @@ const Controller = () => {
 
     const [sidebarMode, setSidebarMode] = useState('main'); // 'main' | 'headers'
     const [showCSSExporter, setShowCSSExporter] = useState(false);
+    const [lhInput, setLhInput] = useState('');
+    const [isEditingLh, setIsEditingLh] = useState(false);
+
+    useEffect(() => {
+        if (!isEditingLh) {
+            setLhInput(Math.round(lineHeight * 100).toString());
+        }
+    }, [lineHeight, isEditingLh]);
 
     if (!fontObject) return null;
 
@@ -95,7 +103,52 @@ const Controller = () => {
                             <div>
                                 <div className="flex justify-between text-xs text-slate-600 mb-1">
                                     <span>Line Height</span>
-                                    <span>{Math.round(lineHeight * 100)}%</span>
+                                    <div className="flex items-center gap-1">
+                                        <input
+                                            type="number"
+                                            min="50"
+                                            max="300"
+                                            step="5"
+                                            value={lhInput}
+                                            onFocus={() => setIsEditingLh(true)}
+                                            onBlur={() => {
+                                                setIsEditingLh(false);
+                                                let val = parseInt(lhInput);
+                                                if (isNaN(val)) val = 100;
+                                                const constrainedVal = Math.max(50, Math.min(300, val));
+                                                setLhInput(constrainedVal.toString());
+                                                setLineHeight(constrainedVal / 100);
+                                                setHeaderStyles(prev => {
+                                                    const updated = {};
+                                                    Object.keys(prev).forEach(tag => {
+                                                        updated[tag] = { ...prev[tag], lineHeight: constrainedVal / 100 };
+                                                    });
+                                                    return updated;
+                                                });
+                                            }}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                setLhInput(val);
+
+                                                if (val === '') return;
+
+                                                const parsed = parseInt(val);
+                                                // Only update global state if within bounds
+                                                if (!isNaN(parsed) && parsed >= 50 && parsed <= 300) {
+                                                    setLineHeight(parsed / 100);
+                                                    setHeaderStyles(prev => {
+                                                        const updated = {};
+                                                        Object.keys(prev).forEach(tag => {
+                                                            updated[tag] = { ...prev[tag], lineHeight: parsed / 100 };
+                                                        });
+                                                        return updated;
+                                                    });
+                                                }
+                                            }}
+                                            className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                        />
+                                        <span className="text-xs">%</span>
+                                    </div>
                                 </div>
                                 <input
                                     type="range"
