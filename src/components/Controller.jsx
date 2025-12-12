@@ -2,6 +2,7 @@ import { useTypo } from '../context/TypoContext';
 import { useState } from 'react';
 import SidebarHeaderConfig from './SidebarHeaderConfig';
 import FontTabs from './FontTabs';
+import CSSExporter from './CSSExporter';
 
 const Controller = () => {
     const {
@@ -24,10 +25,12 @@ const Controller = () => {
         getActiveFont,
         updateFallbackFontOverride,
         resetFallbackFontOverrides,
-        getEffectiveFontSettings
+        getEffectiveFontSettings,
+        setHeaderStyles
     } = useTypo();
 
     const [sidebarMode, setSidebarMode] = useState('main'); // 'main' | 'headers'
+    const [showCSSExporter, setShowCSSExporter] = useState(false);
 
     if (!fontObject) return null;
 
@@ -109,7 +112,18 @@ const Controller = () => {
                                     max="3.0"
                                     step="0.1"
                                     value={lineHeight}
-                                    onChange={(e) => setLineHeight(parseFloat(e.target.value))}
+                                    onChange={(e) => {
+                                        const val = parseFloat(e.target.value);
+                                        setLineHeight(val);
+                                        // Update all header line heights
+                                        setHeaderStyles(prev => {
+                                            const updated = {};
+                                            Object.keys(prev).forEach(tag => {
+                                                updated[tag] = { ...prev[tag], lineHeight: val };
+                                            });
+                                            return updated;
+                                        });
+                                    }}
                                     className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                 />
                                 {hasOverrides && (
@@ -161,12 +175,29 @@ const Controller = () => {
                             </div>
                         </div>
                     )}
+
+                    {/* Export CSS Button - Bottom of Sidebar */}
+                    <button
+                        onClick={() => setShowCSSExporter(true)}
+                        className="w-full mt-4 bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="16 18 22 12 16 6"></polyline>
+                            <polyline points="8 6 2 12 8 18"></polyline>
+                        </svg>
+                        <span>Export CSS</span>
+                    </button>
                 </>
             )}
 
             {/* Header Editor - Full Replacement */}
             {sidebarMode === 'headers' && (
                 <SidebarHeaderConfig onBack={() => setSidebarMode('main')} />
+            )}
+
+            {/* CSS Exporter Modal */}
+            {showCSSExporter && (
+                <CSSExporter onClose={() => setShowCSSExporter(false)} />
             )}
         </div>
     );
