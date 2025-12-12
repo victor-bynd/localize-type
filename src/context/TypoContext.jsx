@@ -26,8 +26,13 @@ export const TypoProvider = ({ children }) => {
     const [fontScales, setFontScales] = useState({ active: 100, fallback: 100 });
     const [isFallbackLinked, setIsFallbackLinked] = useState(true);
 
-    const [headerScales, setHeaderScales] = useState({
-        h1: 1.0, h2: 0.8, h3: 0.6, h4: 0.5, h5: 0.4, h6: 0.3
+    const [headerStyles, setHeaderStyles] = useState({
+        h1: { scale: 1.0, lineHeight: 1.2 },
+        h2: { scale: 0.8, lineHeight: 1.2 },
+        h3: { scale: 0.6, lineHeight: 1.2 },
+        h4: { scale: 0.5, lineHeight: 1.2 },
+        h5: { scale: 0.4, lineHeight: 1.2 },
+        h6: { scale: 0.3, lineHeight: 1.2 }
     });
 
     // Content Overrides
@@ -328,8 +333,22 @@ export const TypoProvider = ({ children }) => {
             fallbackOptions,
             isFallbackLinked,
             setIsFallbackLinked,
-            headerScales,
-            setHeaderScales,
+            headerStyles,
+            setHeaderStyles,
+            // Backward compatibility: expose headerScales as computed value
+            headerScales: Object.fromEntries(
+                Object.entries(headerStyles).map(([tag, style]) => [tag, style.scale])
+            ),
+            // Helper to update individual header properties
+            updateHeaderStyle: (tag, property, value) => {
+                setHeaderStyles(prev => ({
+                    ...prev,
+                    [tag]: {
+                        ...prev[tag],
+                        [property]: value
+                    }
+                }));
+            },
             textOverrides,
             setTextOverride,
             resetTextOverride

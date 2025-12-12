@@ -25,7 +25,8 @@ const LanguageCard = ({ language }) => {
         setTextOverride,
         resetTextOverride,
         getEffectiveFontSettings,
-        getFontColor
+        getFontColor,
+        headerStyles
     } = useTypo();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -375,8 +376,8 @@ const LanguageCard = ({ language }) => {
                     <div className="p-4" style={{ fontSize: `${primaryFontSize}px` }}>
                         {viewMode === 'all' && (
                             <div className="space-y-2">
-                                {['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map((tag, i) => {
-                                    const scale = 2 - (i * 0.2); // Simple scale: 2em down to 1em
+                                {['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map((tag) => {
+                                    const headerStyle = headerStyles[tag];
                                     return (
                                         <div key={tag}>
                                             <span className="text-[10px] text-slate-400 font-mono uppercase mb-1 block">{tag}</span>
@@ -385,9 +386,9 @@ const LanguageCard = ({ language }) => {
                                                 style={{
                                                     fontFamily: 'UploadedFont',
                                                     color: colors.primary,
-                                                    fontSize: `${headerScales[tag]}em`, // Use EM from context
+                                                    fontSize: `${headerStyle.scale}em`,
                                                     fontWeight: 700,
-                                                    lineHeight: lineHeightOverrides[language.id] || lineHeight,
+                                                    lineHeight: headerStyle.lineHeight,
                                                     textTransform: textCase
                                                 }}
                                             >
@@ -405,9 +406,9 @@ const LanguageCard = ({ language }) => {
                                 style={{
                                     fontFamily: 'UploadedFont',
                                     color: colors.primary,
-                                    fontSize: `${headerScales[viewMode]}em`, // Use EM from context
+                                    fontSize: `${headerStyles[viewMode].scale}em`,
                                     fontWeight: 700,
-                                    lineHeight: lineHeightOverrides[language.id] || lineHeight,
+                                    lineHeight: headerStyles[viewMode].lineHeight,
                                     textTransform: textCase
                                 }}
                             >

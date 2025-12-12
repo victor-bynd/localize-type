@@ -201,8 +201,23 @@ const FontTabs = () => {
                                             {/* Font Scale Slider */}
                                             <div>
                                                 <div className="flex justify-between text-[10px] text-slate-500 mb-1">
-                                                    <span>Scale</span>
-                                                    <span className="font-mono">{effectiveSettings?.scale || fontScales.fallback}%</span>
+                                                    <span>Size Adjust</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <input
+                                                            type="number"
+                                                            min="25"
+                                                            max="300"
+                                                            step="5"
+                                                            value={effectiveSettings?.scale || fontScales.fallback}
+                                                            onChange={(e) => {
+                                                                const val = parseInt(e.target.value) || 25;
+                                                                updateFallbackFontOverride(font.id, 'scale', Math.max(25, Math.min(300, val)));
+                                                            }}
+                                                            onClick={e => e.stopPropagation()}
+                                                            className="w-12 text-right font-mono bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                                        />
+                                                        <span className="font-mono">%</span>
+                                                    </div>
                                                 </div>
                                                 <input
                                                     type="range"
