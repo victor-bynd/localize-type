@@ -95,16 +95,16 @@ const Controller = () => {
                             <div>
                                 <div className="flex justify-between text-xs text-slate-600 mb-1">
                                     <span>Line Height</span>
-                                    <span>{lineHeight}</span>
+                                    <span>{Math.round(lineHeight * 100)}%</span>
                                 </div>
                                 <input
                                     type="range"
-                                    min="0.8"
-                                    max="3.0"
-                                    step="0.1"
-                                    value={lineHeight}
+                                    min="50"
+                                    max="300"
+                                    step="5"
+                                    value={Math.round(lineHeight * 100)}
                                     onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
+                                        const val = parseInt(e.target.value) / 100;
                                         setLineHeight(val);
                                         // Update all header line heights
                                         setHeaderStyles(prev => {
