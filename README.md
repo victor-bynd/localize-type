@@ -1,71 +1,98 @@
 # Localize Type
 
-A beautiful web application for testing and previewing fonts across different languages and writing systems. Upload custom fonts and see how they render in various languages with real-time preview and customization options.
+A web app for stress-testing font stacks across languages. This tool can help provide granular typography control when localized text gets rendered into their respective fonts.
+
+How to use: Upload a primary 'brand' font along with your fallback fonts then preview real text and see exactly how your font stack supports global locales.
+
+This tool is especially helpful when your primary 'brand' font is highly stylized causing fallback fonts to not match (in scale and alignment) with the primary font.
 
 ## Features
 
-- 🎨 **Custom font upload and preview**
-- 🌍 **Multi-language support** with diverse writing systems (11 languages)
-  - Latin (English, Lithuanian, Vietnamese)
+- **Upload a font stack**
+  - Drop multiple font files at once: first file becomes the Primary font, remaining files become Fallback fonts
+  - Add additional fallback fonts later
+- **Cascade fallback preview (per character)**
+  - Missing glyphs in the primary font are rendered using the first fallback that supports that glyph
+  - Each fallback font can be visually distinguished via per-font color
+- **Multi-language grid (11 locales/scripts)**
+  - Latin: English, Lithuanian, Vietnamese
   - Greek, Cyrillic (Russian), Arabic (RTL)
-  - Indic scripts (Bengali, Kannada, Telugu)
-  - CJK (Chinese Simplified, Japanese)
-- ⚙️ **Real-time text customization**
-  - Font size scaling (active and fallback fonts)
-  - Line height control (global and per-language)
-  - **Language-specific fallback font scaling** (50-200%)
-  - Text case transformation
-  - Letter spacing and word spacing
-- 📊 **Header size presets** (H1-H6) with custom scaling
-- 📝 **Custom text editing** per language
-- 📱 **Responsive design** with multi-column grid layout
-- 🎯 **Interactive language cards** with:
-  - Missing glyph detection and highlighting
-  - Support percentage calculation
-  - Per-language line height overrides
-  - Per-language fallback font scale overrides
-  - Responsive slider controls
+  - Indic scripts: Bengali, Kannada, Telugu
+  - CJK: Chinese (Simplified), Japanese
+- **Typography controls**
+  - Global fallback size adjust
+  - Global line height and letter spacing
+  - Text casing (normal/lowercase/uppercase/capitalize)
+  - Header presets and a dedicated Header Style editor (H1-H6 scale/line-height/letter-spacing)
+- **Overrides (global, per-font, per-language)**
+  - Per-fallback-font overrides: size adjust and line height
+  - Per-language fallback selection (choose a specific fallback font or use the cascade)
+  - Per-language custom text editing
+  - Override manager to review and reset active overrides
+- **Export CSS**
+  - Generate CSS for your current typography settings (including `@font-face` for uploaded fonts)
+  - Copy to clipboard or download a `.css` file
+- **Font color palette**
+  - Assign a color to each font in the stack for better visualization
+- **Accurate UI controls**
+  - Precise sliders and input fields for fine-tuning typography settings
 
-## Live Demo
+## Getting Started
 
-🚀 **[View Live Demo](https://your-app-url.ondigitalocean.app)** _(Update after deployment)_
+### Prerequisites
+
+- Node.js 18+
+- npm
 
 ## Development
 
 This project uses Vite + React + TailwindCSS.
 
-### Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-
 ### Installation
 
-\`\`\`bash
+```bash
 # Install dependencies
 npm install
 
 # Start development server
 npm run dev
-\`\`\`
+```
 
 Visit `http://localhost:5173` to view the app.
 
+## How to Use
+
+1. **Upload fonts**
+   - Drag and drop one or more font files (`.ttf`, `.otf`, `.woff`, `.woff2`).
+   - The first file becomes the Primary font. The rest become Fallback fonts.
+2. **Tune global typography** (left sidebar)
+   - Adjust global fallback size
+   - Adjust line height and letter spacing
+   - Switch between H1–H6 (or “All”) to preview different header presets
+3. **Manage the font stack**
+   - Reorder fonts via drag & drop to change cascade priority
+   - Configure per-fallback overrides (size/line height)
+   - Set per-font colors to quickly see which font is used for each glyph
+4. **Per-language overrides** (on each language card)
+   - Pick a specific fallback font for a locale (or keep “Default” to use the cascade)
+   - Edit the sample text and save a custom override
+5. **Export CSS**
+   - Click **Export CSS** to copy/download CSS representing your current settings
+
 ### Production Build
 
-\`\`\`bash
+```bash
 # Build for production
 npm run build
 
 # Preview production build locally
 npm run preview
-\`\`\`
+```
 
 ## Deployment
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to DigitalOcean.
 
-**Quick Deploy to DigitalOcean App Platform:**
 1. Push your code to GitHub
 2. Update `.do/app.yaml` with your repository details
 3. Create a new app in DigitalOcean App Platform
@@ -78,13 +105,6 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to D
 - **Styling:** TailwindCSS 4
 - **Font Parsing:** OpenType.js
 - **Deployment:** DigitalOcean App Platform
-
-## Recent Updates
-
-- ✨ Added language-specific fallback font scaling (50-200%)
-- 🌏 Added Kannada and Telugu language support
-- 🎚️ Responsive slider controls with automatic stacking
-- 📏 Improved line height controls (default: 1.0)
 
 ## License
 
