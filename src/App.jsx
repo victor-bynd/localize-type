@@ -1,11 +1,14 @@
-import { useTypo, TypoProvider } from './context/TypoContext';
+import { useState } from 'react';
+import { TypoProvider } from './context/TypoContext';
+import { useTypo } from './context/useTypo';
 import FontUploader from './components/FontUploader';
 import Controller from './components/Controller';
 import LanguageCard from './components/LanguageCard';
-import languages from './data/languages.json';
+import LanguageSelectorModal from './components/LanguageSelectorModal';
 
 const MainContent = () => {
-  const { fontObject, fontUrl, fonts, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase } = useTypo();
+  const { fontObject, fontUrl, fonts, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
   const tabs = [
     { id: 'all', label: 'All' },
@@ -53,6 +56,15 @@ const MainContent = () => {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <button
+                onClick={() => setShowLanguageSelector(true)}
+                className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex items-center px-3 h-[42px] text-sm text-slate-700 font-medium hover:bg-slate-50 transition-colors"
+                title="Show/hide languages"
+              >
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-2">Languages:</span>
+                <span className="font-mono text-xs text-slate-500">{visibleLanguageIds.length}/{languages.length}</span>
+              </button>
+
               {/* Text Casing Dropdown */}
               <div className="bg-white p-1 rounded-lg border border-gray-200 shadow-sm flex items-center px-3 h-[42px]">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mr-2">Casing:</span>
@@ -99,11 +111,15 @@ const MainContent = () => {
             </div>
           </div>
           <div className="grid gap-4 transition-all duration-300 ease-in-out" style={{ gridTemplateColumns: `repeat(${fontObject ? gridColumns : 1}, minmax(0, 1fr))` }}>
-            {languages.map(lang => (
+            {visibleLanguages.map(lang => (
               <LanguageCard key={lang.id} language={lang} />
             ))}
           </div>
         </div>
+      )}
+
+      {showLanguageSelector && (
+        <LanguageSelectorModal onClose={() => setShowLanguageSelector(false)} />
       )}
     </div>
   );

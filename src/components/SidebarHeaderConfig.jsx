@@ -1,4 +1,4 @@
-import { useTypo } from '../context/TypoContext';
+import { useTypo } from '../context/useTypo';
 
 const SidebarHeaderConfig = ({ onBack }) => {
     const { headerStyles, updateHeaderStyle, fontSizes } = useTypo();

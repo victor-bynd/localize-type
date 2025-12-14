@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTypo } from '../context/TypoContext';
+import { useTypo } from '../context/useTypo';
 import FallbackFontAdder from './FallbackFontAdder';
 
 const FontTabs = () => {

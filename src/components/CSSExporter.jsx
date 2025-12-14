@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { generateCSS } from '../utils/cssExporter';
-import { useTypo } from '../context/TypoContext';
+import { useTypo } from '../context/useTypo';
 
 const CSSExporter = ({ onClose, languages = [] }) => {
     const context = useTypo();

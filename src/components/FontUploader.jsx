@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import clsx from 'clsx';
-import { useTypo } from '../context/TypoContext';
+import { useTypo } from '../context/useTypo';
 import { parseFontFile, createFontUrl } from '../services/FontLoader';
 
 const FontUploader = () => {
