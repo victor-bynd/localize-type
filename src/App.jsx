@@ -7,7 +7,7 @@ import LanguageCard from './components/LanguageCard';
 import LanguageSelectorModal from './components/LanguageSelectorModal';
 
 const MainContent = () => {
-  const { fontObject, fontUrl, fonts, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
+  const { fontObject, fontStyles, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
   const tabs = [
@@ -24,20 +24,33 @@ const MainContent = () => {
     <div className="flex-1 bg-slate-50 min-h-screen">
       {/* Dynamic Style Injection for uploaded fonts */}
       <style>{`
-        ${fontUrl ? `
+        ${['primary', 'secondary']
+          .map(styleId => {
+            const style = fontStyles?.[styleId];
+            if (!style) return '';
+
+            const primary = style.fonts?.find(f => f.type === 'primary');
+            const primaryRule = primary?.fontUrl
+              ? `
           @font-face {
-            font-family: 'UploadedFont';
-            src: url('${fontUrl}');
+            font-family: 'UploadedFont-${styleId}';
+            src: url('${primary.fontUrl}');
           }
-        ` : ''}
-        ${fonts
-          .filter(f => f.type === 'fallback' && f.fontUrl)
-          .map(font => `
+        `
+              : '';
+
+            const fallbackRules = (style.fonts || [])
+              .filter(f => f.type === 'fallback' && f.fontUrl)
+              .map(font => `
             @font-face {
-              font-family: 'FallbackFont-${font.id}';
+              font-family: 'FallbackFont-${styleId}-${font.id}';
               src: url('${font.fontUrl}');
             }
           `)
+              .join('');
+
+            return `${primaryRule}${fallbackRules}`;
+          })
           .join('')}
       `}</style>
 

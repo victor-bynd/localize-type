@@ -4,9 +4,12 @@ import SidebarHeaderConfig from './SidebarHeaderConfig';
 import FontTabs from './FontTabs';
 import CSSExporter from './CSSExporter';
 import OverridesManager from './OverridesManager';
+import { parseFontFile, createFontUrl } from '../services/FontLoader';
 
 const Controller = () => {
     const {
+        activeFontStyleId,
+        setActiveFontStyleId,
         fontObject,
         lineHeight,
         setLineHeight,
@@ -18,8 +21,14 @@ const Controller = () => {
         baseFontSize,
         fontScales,
         setFontScales,
-        setHeaderStyles
+
+        setHeaderStyles,
+        headerFontStyleMap,
+        fontStyles,
+        loadFont
     } = useTypo();
+
+    const isSecondaryEmpty = activeFontStyleId === 'secondary' && (!fontStyles?.secondary?.fonts || fontStyles.secondary.fonts.length === 0);
 
     const [sidebarMode, setSidebarMode] = useState('main'); // 'main' | 'headers'
     const [showCSSExporter, setShowCSSExporter] = useState(false);
@@ -40,173 +49,233 @@ const Controller = () => {
                         <h2 className="text-2xl font-bold mb-1 text-slate-800 tracking-tight">Beautify Your Fallbacks</h2>
                     </div>
 
-                    {/* Global Typography Settings */}
-                    <div>
-                        <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
-                            Global Typography Settings
-                        </label>
-                        <div className="space-y-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>Fallback Size Adjust</span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-slate-400 font-mono text-[10px]">{Math.round(baseFontSize * (fontScales.fallback / 100))}px</span>
-                                        <div className="flex items-center gap-1">
-                                            <input
-                                                type="number"
-                                                min="25"
-                                                max="300"
-                                                step="5"
-                                                value={fontScales.fallback}
-                                                onChange={(e) => {
-                                                    const val = parseInt(e.target.value) || 25;
-                                                    setFontScales(prev => ({
-                                                        ...prev,
-                                                        fallback: Math.max(25, Math.min(300, val))
-                                                    }));
-                                                    setIsFallbackLinked(false);
-                                                }}
-                                                className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
-                                            />
-                                            <span className="text-xs">%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="25"
-                                    max="300"
-                                    step="5"
-                                    value={fontScales.fallback}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value);
-                                        setFontScales(prev => ({
-                                            ...prev,
-                                            fallback: val
-                                        }));
-                                        setIsFallbackLinked(false);
-                                    }}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                />
-                            </div>
 
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>Line Height</span>
-                                    <div className="flex items-center gap-1">
+
+
+                    <button
+                        onClick={() => setSidebarMode('headers')}
+                        className="w-full bg-white border border-gray-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                    >
+                        <span className="text-sm font-serif italic">Aa</span>
+                        <span>Edit Header Styles</span>
+                    </button>
+
+                    {/* Font Style Switcher */}
+                    <div>
+                        <div className="bg-slate-100 p-1 rounded-t-lg border border-slate-200 border-b-0 flex">
+                            <button
+                                onClick={() => setActiveFontStyleId('primary')}
+                                className={`flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all ${activeFontStyleId === 'primary'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                Primary
+                            </button>
+                            <button
+                                onClick={() => setActiveFontStyleId('secondary')}
+                                className={`flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all ${activeFontStyleId === 'secondary'
+                                    ? 'bg-white text-indigo-600 shadow-sm'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                            >
+                                Secondary
+                            </button>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-b-lg border border-slate-200">
+                            {isSecondaryEmpty ? (
+                                <label className="flex items-center justify-center w-full py-2 text-xs font-bold text-indigo-600 border border-indigo-200 rounded-md hover:bg-indigo-50 cursor-pointer transition-colors bg-white">
+                                    Add Secondary Font
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept=".ttf,.otf,.woff,.woff2"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            try {
+                                                const font = await parseFontFile(file);
+                                                const url = createFontUrl(file);
+                                                loadFont(font, url, file.name);
+                                                e.target.value = '';
+                                            } catch (err) {
+                                                console.error('Error loading font:', err);
+                                                alert('Failed to load font file.');
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex justify-between text-xs text-slate-600 mb-1">
+                                            <span>Fallback Size Adjust</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-400 font-mono text-[10px]">{Math.round(baseFontSize * (fontScales.fallback / 100))}px</span>
+                                                <div className="flex items-center gap-1">
+                                                    <input
+                                                        type="number"
+                                                        min="25"
+                                                        max="300"
+                                                        step="5"
+                                                        value={fontScales.fallback}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value) || 25;
+                                                            setFontScales(prev => ({
+                                                                ...prev,
+                                                                fallback: Math.max(25, Math.min(300, val))
+                                                            }));
+                                                            setIsFallbackLinked(false);
+                                                        }}
+                                                        className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                                    />
+                                                    <span className="text-xs">%</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                         <input
-                                            type="number"
+                                            type="range"
+                                            min="25"
+                                            max="300"
+                                            step="5"
+                                            value={fontScales.fallback}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setFontScales(prev => ({
+                                                    ...prev,
+                                                    fallback: val
+                                                }));
+                                                setIsFallbackLinked(false);
+                                            }}
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between text-xs text-slate-600 mb-1">
+                                            <span>Line Height</span>
+                                            <div className="flex items-center gap-1">
+                                                <input
+                                                    type="number"
+                                                    min="50"
+                                                    max="300"
+                                                    step="5"
+                                                    value={lhInputValue}
+                                                    onFocus={() => setIsEditingLh(true)}
+                                                    onBlur={() => {
+                                                        setIsEditingLh(false);
+                                                        let val = parseInt(lhInputValue);
+                                                        if (isNaN(val)) val = 100;
+                                                        const constrainedVal = Math.max(50, Math.min(300, val));
+                                                        setLhInput(constrainedVal.toString());
+                                                        setLineHeight(constrainedVal / 100);
+                                                        setHeaderStyles(prev => {
+                                                            const updated = { ...prev };
+                                                            Object.keys(prev).forEach(tag => {
+                                                                const assignedStyle = headerFontStyleMap[tag] || 'primary';
+                                                                if (assignedStyle === activeFontStyleId) {
+                                                                    updated[tag] = { ...prev[tag], lineHeight: constrainedVal / 100 };
+                                                                }
+                                                            });
+                                                            return updated;
+                                                        });
+                                                    }}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        setLhInput(val);
+
+                                                        if (val === '') return;
+
+                                                        const parsed = parseInt(val);
+                                                        if (!isNaN(parsed) && parsed >= 50 && parsed <= 300) {
+                                                            setLineHeight(parsed / 100);
+                                                            setHeaderStyles(prev => {
+                                                                const updated = { ...prev };
+                                                                Object.keys(prev).forEach(tag => {
+                                                                    const assignedStyle = headerFontStyleMap[tag] || 'primary';
+                                                                    if (assignedStyle === activeFontStyleId) {
+                                                                        updated[tag] = { ...prev[tag], lineHeight: parsed / 100 };
+                                                                    }
+                                                                });
+                                                                return updated;
+                                                            });
+                                                        }
+                                                    }}
+                                                    className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                                />
+                                                <span className="text-xs">%</span>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="range"
                                             min="50"
                                             max="300"
                                             step="5"
-                                            value={lhInputValue}
-                                            onFocus={() => setIsEditingLh(true)}
-                                            onBlur={() => {
-                                                setIsEditingLh(false);
-                                                let val = parseInt(lhInputValue);
-                                                if (isNaN(val)) val = 100;
-                                                const constrainedVal = Math.max(50, Math.min(300, val));
-                                                setLhInput(constrainedVal.toString());
-                                                setLineHeight(constrainedVal / 100);
+                                            value={Math.round(lineHeight * 100)}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value) / 100;
+                                                setLineHeight(val);
                                                 setHeaderStyles(prev => {
-                                                    const updated = {};
+                                                    const updated = { ...prev };
                                                     Object.keys(prev).forEach(tag => {
-                                                        updated[tag] = { ...prev[tag], lineHeight: constrainedVal / 100 };
+                                                        const assignedStyle = headerFontStyleMap[tag] || 'primary';
+                                                        if (assignedStyle === activeFontStyleId) {
+                                                            updated[tag] = { ...prev[tag], lineHeight: val };
+                                                        }
                                                     });
                                                     return updated;
                                                 });
                                             }}
-                                            onChange={(e) => {
-                                                const val = e.target.value;
-                                                setLhInput(val);
-
-                                                if (val === '') return;
-
-                                                const parsed = parseInt(val);
-                                                // Only update global state if within bounds
-                                                if (!isNaN(parsed) && parsed >= 50 && parsed <= 300) {
-                                                    setLineHeight(parsed / 100);
-                                                    setHeaderStyles(prev => {
-                                                        const updated = {};
-                                                        Object.keys(prev).forEach(tag => {
-                                                            updated[tag] = { ...prev[tag], lineHeight: parsed / 100 };
-                                                        });
-                                                        return updated;
-                                                    });
-                                                }
-                                            }}
-                                            className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                         />
-                                        <span className="text-xs">%</span>
+                                        {hasOverrides && (
+                                            <button
+                                                onClick={resetAllLineHeightOverrides}
+                                                className="w-full mt-2 py-1 text-[10px] font-bold text-rose-500 border border-rose-200 rounded hover:bg-rose-50 transition-colors"
+                                            >
+                                                Reset {Object.keys(lineHeightOverrides).length} Overrides
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Letter Spacing */}
+                                    <div>
+                                        <div className="flex justify-between text-xs text-slate-600 mb-1">
+                                            <span>Letter Spacing</span>
+                                            <span>{letterSpacing}em</span>
+                                        </div>
+                                        <input
+                                            type="range"
+                                            min="-0.1"
+                                            max="0.5"
+                                            step="0.01"
+                                            value={letterSpacing}
+                                            onChange={(e) => {
+                                                const val = parseFloat(e.target.value);
+                                                setLetterSpacing(val);
+                                                setHeaderStyles(prev => {
+                                                    const updated = { ...prev };
+                                                    Object.keys(prev).forEach(tag => {
+                                                        const assignedStyle = headerFontStyleMap[tag] || 'primary';
+                                                        if (assignedStyle === activeFontStyleId) {
+                                                            updated[tag] = { ...prev[tag], letterSpacing: val };
+                                                        }
+                                                    });
+                                                    return updated;
+                                                });
+                                            }}
+                                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                        />
                                     </div>
                                 </div>
-                                <input
-                                    type="range"
-                                    min="50"
-                                    max="300"
-                                    step="5"
-                                    value={Math.round(lineHeight * 100)}
-                                    onChange={(e) => {
-                                        const val = parseInt(e.target.value) / 100;
-                                        setLineHeight(val);
-                                        // Update all header line heights
-                                        setHeaderStyles(prev => {
-                                            const updated = {};
-                                            Object.keys(prev).forEach(tag => {
-                                                updated[tag] = { ...prev[tag], lineHeight: val };
-                                            });
-                                            return updated;
-                                        });
-                                    }}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                />
-                                {hasOverrides && (
-                                    <button
-                                        onClick={resetAllLineHeightOverrides}
-                                        className="w-full mt-2 py-1 text-[10px] font-bold text-rose-500 border border-rose-200 rounded hover:bg-rose-50 transition-colors"
-                                    >
-                                        Reset {Object.keys(lineHeightOverrides).length} Overrides
-                                    </button>
-                                )}
-                            </div>
-
-                            {/* Letter Spacing Slider */}
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>Letter Spacing</span>
-                                    <span>{letterSpacing}em</span>
-                                </div>
-                                <input
-                                    type="range"
-                                    min="-0.1"
-                                    max="0.5"
-                                    step="0.01"
-                                    value={letterSpacing}
-                                    onChange={(e) => {
-                                        const val = parseFloat(e.target.value);
-                                        setLetterSpacing(val);
-                                        // Update all header letter spacing
-                                        setHeaderStyles(prev => {
-                                            const updated = {};
-                                            Object.keys(prev).forEach(tag => {
-                                                updated[tag] = { ...prev[tag], letterSpacing: val };
-                                            });
-                                            return updated;
-                                        });
-                                    }}
-                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                />
-                            </div>
-
-                            <button
-                                onClick={() => setSidebarMode('headers')}
-                                className="w-full mt-2 bg-white border border-gray-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 px-4 py-2.5 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
-                            >
-                                <span className="text-sm font-serif italic">Aa</span>
-                                <span>Edit Header Styles</span>
-                            </button>
+                            )}
                         </div>
                     </div>
+
+
+
+
 
                     {/* Font Tabs */}
                     <div>
