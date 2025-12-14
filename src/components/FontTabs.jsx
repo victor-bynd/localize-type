@@ -3,28 +3,21 @@ import PropTypes from 'prop-types';
 import { useTypo } from '../context/useTypo';
 import FallbackFontAdder from './FallbackFontAdder';
 import { buildWeightSelectOptions, resolveWeightToAvailableOption } from '../utils/weightUtils';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-    useSortable,
-} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const SortableFontCard = ({
+export const SortableFontCard = ({
     font,
     index,
     isActive,
-    activeFontStyleId,
     globalWeight,
+    globalLineHeight,
+    globalLetterSpacing,
+    setGlobalLineHeight,
+    setGlobalLetterSpacing,
+    hasLineHeightOverrides,
+    lineHeightOverrideCount,
+    resetAllLineHeightOverrides,
     getFontColor,
     updateFontColor,
     getEffectiveFontSettings,
@@ -59,7 +52,10 @@ const SortableFontCard = ({
     const weightOptions = buildWeightSelectOptions(font);
     const resolvedWeight = resolveWeightToAvailableOption(font, effectiveWeight);
 
-    const isInheritingGlobalWeight = font.type === 'fallback' && font.weightOverride === undefined;
+    const globalLineHeightPct = Math.round((typeof globalLineHeight === 'number' ? globalLineHeight : 1.2) * 100);
+    const globalLetterSpacingEm = typeof globalLetterSpacing === 'number' ? globalLetterSpacing : 0;
+
+    const isInheritingGlobalWeight = font.type === 'fallback' && (font.weightOverride === undefined || font.weightOverride === null || font.weightOverride === '');
     const isGlobalWeightUnavailable = isInheritingGlobalWeight && typeof globalWeight === 'number' && effectiveWeight !== globalWeight;
 
     return (
@@ -67,7 +63,7 @@ const SortableFontCard = ({
             ref={setNodeRef}
             style={style}
             className={`
-                bg-slate-50 rounded-lg p-4 border transition-all relative
+                bg-slate-50 rounded-lg p-3 border transition-all relative
                 ${isPrimary ? 'cursor-pointer' : ''}
                 ${isActive
                     ? 'border-indigo-500 ring-2 ring-indigo-500/20'
@@ -76,16 +72,19 @@ const SortableFontCard = ({
             `}
             onClick={() => setActiveFont(font.id)}
         >
-            <button
-                onClick={(e) => handleRemove(e, font.id)}
-                className="absolute top-2 right-2 text-slate-400 hover:text-rose-500 transition-colors p-1 z-10"
-                title="Remove font"
-                onPointerDown={(e) => e.stopPropagation()}
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                    <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-                </svg>
-            </button>
+            {font.type !== 'primary' && (
+                <button
+                    onClick={(e) => handleRemove(e, font.id)}
+                    className="absolute top-2 right-2 text-slate-400 hover:text-rose-500 transition-colors p-1 z-10"
+                    title="Remove font"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    type="button"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                        <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                    </svg>
+                </button>
+            )}
             <div className={`flex items-center gap-1 mb-1 ${!isPrimary ? '-ml-[3px]' : ''}`}>
                 <div
                     className="text-slate-400 cursor-move flex-shrink-0 hover:text-indigo-600 transition-colors p-1 -ml-1 rounded hover:bg-slate-100 touch-none"
@@ -98,14 +97,17 @@ const SortableFontCard = ({
                     </svg>
                 </div>
                 <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                    {font.type === 'primary'
-                        ? (activeFontStyleId === 'secondary' ? 'Secondary Font' : 'Primary Font')
-                        : 'Fallback Font'}
+                    {font.type === 'primary' ? 'Main Font' : 'Fallback Font'}
                 </div>
             </div>
             <div className={`font-mono text-sm break-all text-slate-700 font-medium pr-6 ${!isPrimary ? '' : ''}`}>
                 {font.fileName || font.name || 'No font uploaded'}
             </div>
+            {!isPrimary && isGlobalWeightUnavailable && (
+                <div className="text-[10px] text-amber-600 mt-1">
+                    Main weight {globalWeight} not available; using {effectiveWeight}.
+                </div>
+            )}
             {font.fontObject && (
                 <div className={`text-xs text-slate-400 mt-2 flex items-center gap-2 ${!isPrimary ? '' : ''}`}>
                     <div className="relative w-3 h-3 flex-shrink-0 cursor-pointer group">
@@ -147,9 +149,108 @@ const SortableFontCard = ({
                 </div>
             )}
 
+            {/* Main Font Controls */}
+            {isPrimary && (
+                <div className="mt-3 pt-2 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-200 cursor-auto">
+                    <div className="space-y-2" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                        {/* Weight */}
+                        <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                <span>Weight</span>
+                                <span className="text-slate-400 font-mono text-[10px]">{effectiveWeight}</span>
+                            </div>
+                            <select
+                                value={resolvedWeight}
+                                onChange={(e) => {
+                                    const raw = e.target.value;
+                                    updateFontWeight(font.id, parseInt(raw));
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                            >
+                                {weightOptions.map(opt => (
+                                    <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Line Height */}
+                        <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                <span>Line Height</span>
+                                <div className="flex items-center gap-1">
+                                    <input
+                                        type="number"
+                                        min="50"
+                                        max="300"
+                                        step="5"
+                                        value={globalLineHeightPct}
+                                        onChange={(e) => {
+                                            const parsed = parseInt(e.target.value);
+                                            if (isNaN(parsed)) return;
+                                            const constrained = Math.max(50, Math.min(300, parsed));
+                                            setGlobalLineHeight?.(constrained / 100);
+                                        }}
+                                        className="w-12 text-right font-mono bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
+                                    />
+                                    <span className="font-mono">%</span>
+                                </div>
+                            </div>
+                            <input
+                                type="range"
+                                min="50"
+                                max="300"
+                                step="5"
+                                value={globalLineHeightPct}
+                                onChange={(e) => {
+                                    const parsed = parseInt(e.target.value);
+                                    const constrained = Math.max(50, Math.min(300, parsed));
+                                    setGlobalLineHeight?.(constrained / 100);
+                                }}
+                                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 block"
+                            />
+                            {hasLineHeightOverrides && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        resetAllLineHeightOverrides?.();
+                                    }}
+                                    className="w-full mt-2 py-1 text-[10px] font-bold text-rose-500 border border-rose-200 rounded hover:bg-rose-50 transition-colors"
+                                    type="button"
+                                >
+                                    Reset {lineHeightOverrideCount} Overrides
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Letter Spacing */}
+                        <div>
+                            <div className="flex justify-between text-[10px] text-slate-500 mb-1">
+                                <span>Letter Spacing</span>
+                                <span>{globalLetterSpacingEm}em</span>
+                            </div>
+                            <input
+                                type="range"
+                                min="-0.1"
+                                max="0.5"
+                                step="0.01"
+                                value={globalLetterSpacingEm}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if (isNaN(val)) return;
+                                    setGlobalLetterSpacing?.(val);
+                                }}
+                                className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 block"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Weight Control */}
             {!isPrimary && isActive && (
-                <div className="mt-4 pt-3 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-200 cursor-auto">
+                <div className="mt-3 pt-2 border-t border-slate-200/60 animate-in fade-in slide-in-from-top-2 duration-200 cursor-auto">
                     {(() => {
                         const effectiveSettings = getEffectiveFontSettings(font.id);
                         const hasOverrides = effectiveSettings && (
@@ -159,7 +260,7 @@ const SortableFontCard = ({
                         );
 
                         return (
-                            <div className="space-y-3" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
+                            <div className="space-y-2" onClick={e => e.stopPropagation()} onPointerDown={e => e.stopPropagation()}>
                                 {/* Header with Reset */}
                                 <div className="flex items-center justify-between">
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
@@ -189,18 +290,13 @@ const SortableFontCard = ({
                                                     updateFallbackFontOverride(font.id, 'weightOverride', undefined);
                                                 }}
                                                 className="text-[9px] text-slate-400 hover:text-rose-500"
-                                                title="Reset to Global Weight"
+                                                title="Reset to Main Weight"
                                                 type="button"
                                             >
                                                 ↺
                                             </button>
                                         )}
                                     </div>
-                                    {isGlobalWeightUnavailable && (
-                                        <div className="text-[10px] text-amber-600 mb-1">
-                                            Global weight {globalWeight} not available; using {effectiveWeight}.
-                                        </div>
-                                    )}
                                     <select
                                         value={resolvedWeight}
                                         onChange={(e) => {
@@ -339,8 +435,14 @@ SortableFontCard.propTypes = {
     }).isRequired,
     index: PropTypes.number.isRequired,
     isActive: PropTypes.bool.isRequired,
-    activeFontStyleId: PropTypes.string.isRequired,
     globalWeight: PropTypes.number,
+    globalLineHeight: PropTypes.number,
+    globalLetterSpacing: PropTypes.number,
+    setGlobalLineHeight: PropTypes.func,
+    setGlobalLetterSpacing: PropTypes.func,
+    hasLineHeightOverrides: PropTypes.bool,
+    lineHeightOverrideCount: PropTypes.number,
+    resetAllLineHeightOverrides: PropTypes.func,
     getFontColor: PropTypes.func.isRequired,
     updateFontColor: PropTypes.func.isRequired,
     getEffectiveFontSettings: PropTypes.func.isRequired,
@@ -355,12 +457,10 @@ SortableFontCard.propTypes = {
 
 const FontTabs = () => {
     const {
-        activeFontStyleId,
         fonts,
         activeFont,
         setActiveFont,
         removeFallbackFont,
-        reorderFonts,
         getFontColor,
         getEffectiveFontSettings,
         fontScales,
@@ -370,18 +470,10 @@ const FontTabs = () => {
         colors,
         updateFontColor,
         setColors,
-        copyFontsFromPrimaryToSecondary,
         updateFontWeight,
         weight
     } = useTypo();
     const [showAdder, setShowAdder] = useState(false);
-
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-            coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
 
     const handleRemove = (e, fontId) => {
         e.stopPropagation();
@@ -390,56 +482,32 @@ const FontTabs = () => {
         }
     };
 
-    const handleDragEnd = (event) => {
-        const { active, over } = event;
-
-        if (active.id !== over.id) {
-            const oldIndex = fonts.findIndex((f) => f.id === active.id);
-            const newIndex = fonts.findIndex((f) => f.id === over.id);
-
-            reorderFonts(oldIndex, newIndex);
-
-            // Set the moved font as active
-            setActiveFont(active.id);
-        }
-    };
+    const fallbackFonts = (fonts || []).filter(f => f.type === 'fallback');
 
     return (
-        <div className="pb-6 space-y-3">
-            <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-            >
-                <SortableContext
-                    items={fonts.map(f => f.id)}
-                    strategy={verticalListSortingStrategy}
-                >
-                    {fonts.map((font, index) => (
-                        <SortableFontCard
-                            key={font.id}
-                            font={font}
-                            index={index}
-                            isActive={font.id === activeFont}
-                            activeFontStyleId={activeFontStyleId}
-                            globalWeight={weight}
-                            getFontColor={getFontColor}
-                            updateFontColor={updateFontColor}
-                            getEffectiveFontSettings={getEffectiveFontSettings}
-                            fontScales={fontScales}
-                            lineHeight={lineHeight}
-                            updateFallbackFontOverride={updateFallbackFontOverride}
-                            resetFallbackFontOverrides={resetFallbackFontOverrides}
-                            setActiveFont={setActiveFont}
-                            handleRemove={handleRemove}
-                            updateFontWeight={updateFontWeight}
-                        />
-                    ))}
-                </SortableContext>
-            </DndContext>
+        <div className="pb-4 space-y-2">
+            {fallbackFonts.map((font) => (
+                <SortableFontCard
+                    key={font.id}
+                    font={font}
+                    index={(fonts || []).findIndex(f => f.id === font.id)}
+                    isActive={font.id === activeFont}
+                    globalWeight={weight}
+                    getFontColor={getFontColor}
+                    updateFontColor={updateFontColor}
+                    getEffectiveFontSettings={getEffectiveFontSettings}
+                    fontScales={fontScales}
+                    lineHeight={lineHeight}
+                    updateFallbackFontOverride={updateFallbackFontOverride}
+                    resetFallbackFontOverrides={resetFallbackFontOverrides}
+                    setActiveFont={setActiveFont}
+                    handleRemove={handleRemove}
+                    updateFontWeight={updateFontWeight}
+                />
+            ))}
 
             {/* Static System Fallback Tab */}
-            <div className="bg-slate-50/50 rounded-lg p-4 border border-slate-200 border-dashed relative select-none">
+            <div className="bg-slate-50/50 rounded-lg p-3 border border-slate-200 border-dashed relative select-none">
                 <div className="flex items-center gap-2 mb-1">
                     <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
                         Final Fallback
@@ -467,7 +535,7 @@ const FontTabs = () => {
             {/* Add Fallback Font Button */}
             <button
                 onClick={() => setShowAdder(!showAdder)}
-                className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 border-dashed rounded-lg p-3 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
+                className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 border-dashed rounded-lg p-2.5 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -479,20 +547,6 @@ const FontTabs = () => {
                 </svg>
                 <span>{showAdder ? 'Cancel' : 'Add Fallback Font'}</span>
             </button>
-
-            {activeFontStyleId === 'secondary' && fonts.length === 0 && (
-                <button
-                    onClick={copyFontsFromPrimaryToSecondary}
-                    className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-300 border-dashed rounded-lg p-3 text-xs font-bold text-slate-600 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
-                    type="button"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                        <path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z" />
-                        <path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a.5.5 0 00-.146-.354l-.854-.853A.5.5 0 0011.646 9.5H8.379a1.5 1.5 0 01-1.06-.44L4.5 6z" />
-                    </svg>
-                    <span>Copy Stack from Primary</span>
-                </button>
-            )}
 
             {/* Fallback Font Adder */}
             {showAdder && (

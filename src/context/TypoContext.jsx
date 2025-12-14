@@ -431,21 +431,63 @@ export const TypoProvider = ({ children }) => {
     // Reorder fonts (move a font from oldIndex to newIndex)
     // Reorder fonts (move a font from oldIndex to newIndex)
     const reorderFonts = (oldIndex, newIndex) => {
-        setFonts(prev => {
-            const newFonts = [...prev];
+        const styleId = activeFontStyleId;
+        updateStyleState(styleId, prev => {
+            const currentFonts = prev.fonts || [];
+            const newFonts = [...currentFonts];
 
             // Perform the move
             const [movedFont] = newFonts.splice(oldIndex, 1);
             newFonts.splice(newIndex, 0, movedFont);
 
+            const primaryChanged = oldIndex === 0 || newIndex === 0;
+
             // Reassign types based on new position
             // Index 0 is always Primary, others are Fallback
-            const finalFonts = newFonts.map((font, index) => ({
-                ...font,
-                type: index === 0 ? 'primary' : 'fallback'
-            }));
+            const finalFonts = newFonts.map((font, index) => {
+                const nextType = index === 0 ? 'primary' : 'fallback';
 
-            return finalFonts;
+                // If a fallback becomes the primary (or primary moves away), reset all fallback overrides
+                // so they inherit from the new primary by default.
+                if (primaryChanged && nextType === 'fallback') {
+                    return {
+                        ...font,
+                        type: nextType,
+                        baseFontSize: undefined,
+                        scale: undefined,
+                        lineHeight: undefined,
+                        weightOverride: undefined
+                    };
+                }
+
+                // Keep state clean: when something becomes the primary font, clear fallback-only overrides.
+                if (primaryChanged && nextType === 'primary') {
+                    return {
+                        ...font,
+                        type: nextType,
+                        baseFontSize: undefined,
+                        scale: undefined,
+                        lineHeight: undefined,
+                        weightOverride: undefined
+                    };
+                }
+
+                return {
+                    ...font,
+                    type: nextType
+                };
+            });
+
+            const newPrimary = finalFonts.find(f => f.type === 'primary');
+            const nextWeight = primaryChanged && newPrimary
+                ? resolveWeightForFont(newPrimary, prev.weight)
+                : prev.weight;
+
+            return {
+                ...prev,
+                fonts: finalFonts,
+                weight: nextWeight
+            };
         });
     };
 

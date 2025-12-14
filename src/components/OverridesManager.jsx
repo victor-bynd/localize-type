@@ -132,7 +132,7 @@ const OverridesManager = () => {
                                 {group.hasGlobalFallbackScale && (
                                     <div className="p-3 flex items-start justify-between gap-2">
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-semibold text-slate-700 truncate">Global Fallback Size Adjust</div>
+                                            <div className="text-xs font-semibold text-slate-700 truncate">Main Fallback Size Adjust</div>
                                             <div className="text-[10px] text-slate-500 mt-0.5">
                                                 • {style.fontScales.fallback}%
                                             </div>
