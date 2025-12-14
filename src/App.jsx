@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { TypoProvider } from './context/TypoContext';
 import { useTypo } from './context/useTypo';
 import FontUploader from './components/FontUploader';
 import Controller from './components/Controller';
 import LanguageCard from './components/LanguageCard';
 import LanguageSelectorModal from './components/LanguageSelectorModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const MainContent = () => {
-  const { fontObject, fontUrl, fonts, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
+  const { fontObject, fontStyles, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
 
   const tabs = [
@@ -20,26 +21,41 @@ const MainContent = () => {
     { id: 'h6', label: 'H6' },
   ];
 
-  return (
-    <div className="flex-1 bg-slate-50 min-h-screen">
-      {/* Dynamic Style Injection for uploaded fonts */}
-      <style>{`
-        ${fontUrl ? `
+  const fontFaceStyles = useMemo(() => {
+    return ['primary', 'secondary']
+      .map(styleId => {
+        const style = fontStyles?.[styleId];
+        if (!style) return '';
+
+        const primary = style.fonts?.find(f => f.type === 'primary');
+        const primaryRule = primary?.fontUrl
+          ? `
           @font-face {
-            font-family: 'UploadedFont';
-            src: url('${fontUrl}');
+            font-family: 'UploadedFont-${styleId}';
+            src: url('${primary.fontUrl}');
           }
-        ` : ''}
-        ${fonts
+        `
+          : '';
+
+        const fallbackRules = (style.fonts || [])
           .filter(f => f.type === 'fallback' && f.fontUrl)
           .map(font => `
             @font-face {
-              font-family: 'FallbackFont-${font.id}';
+              font-family: 'FallbackFont-${styleId}-${font.id}';
               src: url('${font.fontUrl}');
             }
           `)
-          .join('')}
-      `}</style>
+          .join('');
+
+        return `${primaryRule}${fallbackRules}`;
+      })
+      .join('');
+  }, [fontStyles]);
+
+  return (
+    <div className="flex-1 bg-slate-50 min-h-screen">
+      {/* Dynamic Style Injection for uploaded fonts */}
+      <style>{fontFaceStyles}</style>
 
       {!fontObject ? (
         <div className="h-screen flex flex-col items-center justify-center p-4">
@@ -127,12 +143,14 @@ const MainContent = () => {
 
 function App() {
   return (
-    <TypoProvider>
-      <div className="flex min-h-screen w-full">
-        <Controller />
-        <MainContent />
-      </div>
-    </TypoProvider>
+    <ErrorBoundary>
+      <TypoProvider>
+        <div className="flex min-h-screen w-full">
+          <Controller />
+          <MainContent />
+        </div>
+      </TypoProvider>
+    </ErrorBoundary>
   );
 }
 

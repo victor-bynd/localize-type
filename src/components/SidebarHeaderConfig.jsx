@@ -1,7 +1,7 @@
 import { useTypo } from '../context/useTypo';
 
 const SidebarHeaderConfig = ({ onBack }) => {
-    const { headerStyles, updateHeaderStyle, fontSizes } = useTypo();
+    const { headerStyles, updateHeaderStyle, fontSizes, headerFontStyleMap, setHeaderFontStyle } = useTypo();
 
     const handleScaleChange = (tag, value) => {
         updateHeaderStyle(tag, 'scale', parseFloat(value));
@@ -35,34 +35,60 @@ const SidebarHeaderConfig = ({ onBack }) => {
                 {['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map(tag => {
                     const style = headerStyles[tag];
                     const pxValue = Math.round(style.scale * fontSizes.active);
+                    const currentStyle = headerFontStyleMap?.[tag] || 'primary';
+
                     return (
                         <div key={tag} className="space-y-3">
-                            {/* Header Tag Label */}
-                            <div className="flex justify-between items-end">
-                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{tag}</span>
-                                <div className="flex items-center gap-2 text-xs">
-                                    <div className="flex items-center">
-                                        <input
-                                            type="number"
-                                            min="0.1"
-                                            max="10"
-                                            step="0.05"
-                                            value={style.scale}
-                                            onChange={(e) => handleScaleChange(tag, e.target.value)}
-                                            className="w-10 text-right font-mono text-slate-400 focus:text-indigo-600 focus:outline-none bg-transparent"
-                                        />
-                                        <span className="text-slate-300">em</span>
+                            {/* Header Tag + Style Tabs + Values */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">{tag}</span>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        <div className="flex items-center">
+                                            <input
+                                                type="number"
+                                                min="0.1"
+                                                max="10"
+                                                step="0.05"
+                                                value={style.scale}
+                                                onChange={(e) => handleScaleChange(tag, e.target.value)}
+                                                className="w-10 text-right font-mono text-slate-400 focus:text-indigo-600 focus:outline-none bg-transparent"
+                                            />
+                                            <span className="text-slate-300">em</span>
+                                        </div>
+                                        <span className="text-slate-200">|</span>
+                                        <div className="flex items-center">
+                                            <input
+                                                type="number"
+                                                value={pxValue}
+                                                onChange={(e) => handlePxChange(tag, e.target.value)}
+                                                className="w-10 text-right font-bold text-indigo-600 focus:outline-none bg-transparent"
+                                            />
+                                            <span className="text-slate-400 font-medium">px</span>
+                                        </div>
                                     </div>
-                                    <span className="text-slate-200">|</span>
-                                    <div className="flex items-center">
-                                        <input
-                                            type="number"
-                                            value={pxValue}
-                                            onChange={(e) => handlePxChange(tag, e.target.value)}
-                                            className="w-10 text-right font-bold text-indigo-600 focus:outline-none bg-transparent"
-                                        />
-                                        <span className="text-slate-400 font-medium">px</span>
-                                    </div>
+                                </div>
+
+                                {/* Tab-like Style Switcher */}
+                                <div className="bg-slate-100 p-0.5 rounded-md flex">
+                                    <button
+                                        onClick={() => setHeaderFontStyle(tag, 'primary')}
+                                        className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all ${currentStyle === 'primary'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        Primary
+                                    </button>
+                                    <button
+                                        onClick={() => setHeaderFontStyle(tag, 'secondary')}
+                                        className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all ${currentStyle === 'secondary'
+                                            ? 'bg-white text-indigo-600 shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        Secondary
+                                    </button>
                                 </div>
                             </div>
 
