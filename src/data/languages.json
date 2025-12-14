@@ -37,10 +37,41 @@
     "pangram": "سناب شات يصل إلى 250 مليون مستخدم نشط شهريًا"
   },
   {
+    "id": "fa-IR",
+    "name": "Persian (Right-to-Left)",
+    "script": "Arabic",
+    "dir": "rtl",
+    "pangram": "اسنپ\u200cچت به ۲۵۰ میلیون کاربر فعال ماهانه رسید."
+  },
+  {
+    "id": "hi-IN",
+    "name": "Hindi (Devanagari)",
+    "script": "Devanagari",
+    "pangram": "स्नैपचैट के मासिक सक्रिय उपयोगकर्ता २५० मिलियन तक पहुँच गए।"
+  },
+  {
     "id": "bn-IN",
     "name": "Bengali (Complex Indic)",
     "script": "Bengali",
     "pangram": "Snapchat-এর মাসিক সক্রিয় ব্যবহারকারীর সংখ্যা ২৫০ মিলিয়নে পৌঁছেছে"
+  },
+  {
+    "id": "kn-IN",
+    "name": "Kannada (Indic Script)",
+    "script": "Kannada",
+    "pangram": "Snapchat ತಿಂಗಳಿಗೆ 250 ಮಿಲಿಯನ್ ಸಕ್ರಿಯ ಬಳಕೆದಾರರನ್ನು ತಲುಪುತ್ತದೆ"
+  },
+  {
+    "id": "te-IN",
+    "name": "Telugu (Indic Script)",
+    "script": "Telugu",
+    "pangram": "Snapchat నెలవారీ క్రియాశీల వినియోగదారులు 250 మిలియన్లకు చేరుకుంది"
+  },
+  {
+    "id": "th-TH",
+    "name": "Thai (Complex Stacked Diacritics)",
+    "script": "Thai",
+    "pangram": "Snapchat มีผู้ใช้งานประจำเดือนถึง 250 ล้านคน"
   },
   {
     "id": "zh-CN",
@@ -55,15 +86,9 @@
     "pangram": "Snapchatの月間アクティブユーザー数が2億5000万人に達した。"
   },
   {
-    "id": "kn-IN",
-    "name": "Kannada (Indic Script)",
-    "script": "Kannada",
-    "pangram": "Snapchat ತಿಂಗಳಿಗೆ 250 ಮಿಲಿಯನ್ ಸಕ್ರಿಯ ಬಳಕೆದಾರರನ್ನು ತಲುಪುತ್ತದೆ"
-  },
-  {
-    "id": "te-IN",
-    "name": "Telugu (Indic Script)",
-    "script": "Telugu",
-    "pangram": "Snapchat నెలవారీ క్రియాశీల వినియోగదారులు 250 మిలియన్లకు చేరుకుంది"
+    "id": "ko-KR",
+    "name": "Korean (Hangul Syllabic Blocks)",
+    "script": "Hangul",
+    "pangram": "스냅챗 월간 활성 사용자가 2억 5천만 명에 도달했다."
   }
 ]

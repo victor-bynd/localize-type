@@ -1,8 +1,9 @@
-import { useTypo } from '../context/TypoContext';
-import languages from '../data/languages.json';
+import { useTypo } from '../context/useTypo';
 
 const OverridesManager = () => {
     const {
+        languages,
+        visibleLanguageIds,
         fonts,
         lineHeightOverrides,
         fallbackFontOverrides,
@@ -24,6 +25,8 @@ const OverridesManager = () => {
     };
 
     // Collect all overrides
+    const visibleSet = new Set(visibleLanguageIds);
+
     const fontLevelOverrides = fonts
         .filter(f => f.type === 'fallback' && (f.scale !== undefined || f.lineHeight !== undefined))
         .map(f => ({
@@ -36,26 +39,30 @@ const OverridesManager = () => {
             }
         }));
 
-    const languageLevelOverrides = Object.entries(fallbackFontOverrides).map(([langId, fontId]) => {
-        const language = languages.find(l => l.id === langId);
-        const font = fonts.find(f => f.id === fontId);
-        return {
-            type: 'language-level',
-            langId,
-            languageName: language?.name || 'Unknown',
-            fontName: font?.fileName?.replace(/\.[^/.]+$/, '') || font?.name || 'Unknown Font'
-        };
-    });
+    const languageLevelOverrides = Object.entries(fallbackFontOverrides)
+        .filter(([langId]) => visibleSet.has(langId))
+        .map(([langId, fontId]) => {
+            const language = languages.find(l => l.id === langId);
+            const font = fonts.find(f => f.id === fontId);
+            return {
+                type: 'language-level',
+                langId,
+                languageName: language?.name || 'Unknown',
+                fontName: font?.fileName?.replace(/\.[^/.]+$/, '') || font?.name || 'Unknown Font'
+            };
+        });
 
-    const lineHeightOverridesList = Object.entries(lineHeightOverrides).map(([langId, value]) => {
-        const language = languages.find(l => l.id === langId);
-        return {
-            type: 'line-height',
-            langId,
-            languageName: language?.name || 'Unknown',
-            value
-        };
-    });
+    const lineHeightOverridesList = Object.entries(lineHeightOverrides)
+        .filter(([langId]) => visibleSet.has(langId))
+        .map(([langId, value]) => {
+            const language = languages.find(l => l.id === langId);
+            return {
+                type: 'line-height',
+                langId,
+                languageName: language?.name || 'Unknown',
+                value
+            };
+        });
 
     // Check if global fallback scale is modified
     const hasGlobalFallbackScale = fontScales.fallback !== 100;

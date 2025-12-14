@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useTypo } from '../context/TypoContext';
+import { useTypo } from '../context/useTypo';
 
 const LanguageCard = ({ language }) => {
     const {

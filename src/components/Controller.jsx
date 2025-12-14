@@ -1,5 +1,5 @@
-import { useTypo } from '../context/TypoContext';
-import { useState, useEffect } from 'react';
+import { useTypo } from '../context/useTypo';
+import { useState } from 'react';
 import SidebarHeaderConfig from './SidebarHeaderConfig';
 import FontTabs from './FontTabs';
 import CSSExporter from './CSSExporter';
@@ -14,8 +14,6 @@ const Controller = () => {
         setLetterSpacing,
         lineHeightOverrides,
         resetAllLineHeightOverrides,
-        fallbackFontOverrides,
-        resetAllFallbackFontOverrides,
         setIsFallbackLinked,
         baseFontSize,
         fontScales,
@@ -25,22 +23,14 @@ const Controller = () => {
 
     const [sidebarMode, setSidebarMode] = useState('main'); // 'main' | 'headers'
     const [showCSSExporter, setShowCSSExporter] = useState(false);
-    const [lhInput, setLhInput] = useState('');
+    const [lhInput, setLhInput] = useState(() => Math.round(lineHeight * 100).toString());
     const [isEditingLh, setIsEditingLh] = useState(false);
 
-    useEffect(() => {
-        if (!isEditingLh) {
-            setLhInput(Math.round(lineHeight * 100).toString());
-        }
-    }, [lineHeight, isEditingLh]);
+    const lhInputValue = isEditingLh ? lhInput : Math.round(lineHeight * 100).toString();
 
     if (!fontObject) return null;
 
     const hasOverrides = Object.keys(lineHeightOverrides).length > 0;
-    const hasFallbackFontOverrides = Object.keys(fallbackFontOverrides).length > 0;
-
-
-
     return (
         <div className="w-80 bg-white border-r border-gray-200 p-6 flex flex-col gap-6 h-screen sticky top-0 overflow-y-auto z-10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.05)]">
             {sidebarMode === 'main' && (
@@ -109,11 +99,11 @@ const Controller = () => {
                                             min="50"
                                             max="300"
                                             step="5"
-                                            value={lhInput}
+                                            value={lhInputValue}
                                             onFocus={() => setIsEditingLh(true)}
                                             onBlur={() => {
                                                 setIsEditingLh(false);
-                                                let val = parseInt(lhInput);
+                                                let val = parseInt(lhInputValue);
                                                 if (isNaN(val)) val = 100;
                                                 const constrainedVal = Math.max(50, Math.min(300, val));
                                                 setLhInput(constrainedVal.toString());

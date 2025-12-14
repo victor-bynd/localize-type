@@ -1,7 +1,10 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useEffect, useState } from 'react';
 import { fallbackOptions, DEFAULT_PALETTE } from '../data/constants';
+import languages from '../data/languages.json';
 
 const TypoContext = createContext();
+
+const VISIBLE_LANGUAGE_IDS_STORAGE_KEY = 'localize-type:visibleLanguageIds:v1';
 
 export const TypoProvider = ({ children }) => {
     const [fontObject, setFontObject] = useState(null);
@@ -73,6 +76,79 @@ export const TypoProvider = ({ children }) => {
         missing: '#ff0000',
         missingBg: '#ffecec'
     });
+
+    const getDefaultVisibleLanguageIds = () => languages.map(l => l.id);
+
+    const [visibleLanguageIds, setVisibleLanguageIds] = useState(() => {
+        const defaultIds = getDefaultVisibleLanguageIds();
+        try {
+            const raw = localStorage.getItem(VISIBLE_LANGUAGE_IDS_STORAGE_KEY);
+            if (!raw) return defaultIds;
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return defaultIds;
+
+            // Respect the saved selection order, but only keep IDs that still exist.
+            // This ensures hidden languages remain hidden after a reload.
+            const validSet = new Set(defaultIds);
+            const seen = new Set();
+            return parsed
+                .filter(id => typeof id === 'string')
+                .filter(id => validSet.has(id))
+                .filter(id => {
+                    if (seen.has(id)) return false;
+                    seen.add(id);
+                    return true;
+                });
+        } catch {
+            return defaultIds;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(VISIBLE_LANGUAGE_IDS_STORAGE_KEY, JSON.stringify(visibleLanguageIds));
+        } catch {
+            // Ignore persistence failures (private mode, quota, etc.)
+        }
+    }, [visibleLanguageIds]);
+
+    const isLanguageVisible = (langId) => visibleLanguageIds.includes(langId);
+
+    const setLanguageVisibility = (langId, visible) => {
+        setVisibleLanguageIds(prev => {
+            const exists = prev.includes(langId);
+            if (visible) {
+                if (exists) return prev;
+                // Insert back in canonical order (languages.json)
+                const canonical = getDefaultVisibleLanguageIds();
+                const nextSet = new Set(prev);
+                nextSet.add(langId);
+                return canonical.filter(id => nextSet.has(id));
+            }
+
+            if (!exists) return prev;
+            return prev.filter(id => id !== langId);
+        });
+    };
+
+    const toggleLanguageVisibility = (langId) => {
+        setLanguageVisibility(langId, !isLanguageVisible(langId));
+    };
+
+    const showAllLanguages = () => {
+        setVisibleLanguageIds(getDefaultVisibleLanguageIds());
+    };
+
+    const hideAllLanguages = () => {
+        setVisibleLanguageIds([]);
+    };
+
+    const resetVisibleLanguages = () => {
+        setVisibleLanguageIds(getDefaultVisibleLanguageIds());
+    };
+
+    const visibleLanguages = languages.filter(l => visibleLanguageIds.includes(l.id));
 
     const loadFont = (font, url, name) => {
         // Update old state (for backward compatibility)
@@ -257,6 +333,16 @@ export const TypoProvider = ({ children }) => {
 
     return (
         <TypoContext.Provider value={{
+            languages,
+            visibleLanguageIds,
+            visibleLanguages,
+            isLanguageVisible,
+            setLanguageVisibility,
+            toggleLanguageVisibility,
+            showAllLanguages,
+            hideAllLanguages,
+            resetVisibleLanguages,
+
             // NEW: Multi-font system
             fonts,
             setFonts,
@@ -339,10 +425,4 @@ export const TypoProvider = ({ children }) => {
     );
 };
 
-export const useTypo = () => {
-    const context = useContext(TypoContext);
-    if (!context) {
-        throw new Error('useTypo must be used within a TypoProvider');
-    }
-    return context;
-};
+export default TypoContext;

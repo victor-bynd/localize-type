@@ -14,11 +14,17 @@ This tool is especially helpful when your primary 'brand' font is highly stylize
 - **Cascade fallback preview (per character)**
   - Missing glyphs in the primary font are rendered using the first fallback that supports that glyph
   - Each fallback font can be visually distinguished via per-font color
-- **Multi-language grid (11 locales/scripts)**
+- **Multi-language grid (15 locales/scripts)**
   - Latin: English, Lithuanian, Vietnamese
-  - Greek, Cyrillic (Russian), Arabic (RTL)
-  - Indic scripts: Bengali, Kannada, Telugu
-  - CJK: Chinese (Simplified), Japanese
+  - Greek, Cyrillic (Russian)
+  - RTL: Arabic, Persian
+  - Indic scripts: Bengali, Hindi (Devanagari), Kannada, Telugu
+  - Southeast Asia: Thai
+  - CJK: Chinese (Simplified), Japanese, Korean
+- **Show/hide languages**
+  - Use the **Languages** button (top-right) to toggle which language cards are displayed
+  - Includes Select all / Select none / Reset
+  - Your selection persists in the browser (via `localStorage`)
 - **Typography controls**
   - Global fallback size adjust
   - Global line height and letter spacing
@@ -69,14 +75,17 @@ Visit `http://localhost:5173` to view the app.
    - Adjust global fallback size
    - Adjust line height and letter spacing
    - Switch between H1–H6 (or “All”) to preview different header presets
-3. **Manage the font stack**
+3. **Show/hide languages**
+   - Click **Languages** in the top-right to choose which locales are visible
+   - The app remembers your selection across refreshes
+4. **Manage the font stack**
    - Reorder fonts via drag & drop to change cascade priority
    - Configure per-fallback overrides (size/line height)
    - Set per-font colors to quickly see which font is used for each glyph
-4. **Per-language overrides** (on each language card)
+5. **Per-language overrides** (on each language card)
    - Pick a specific fallback font for a locale (or keep “Default” to use the cascade)
    - Edit the sample text and save a custom override
-5. **Export CSS**
+6. **Export CSS**
    - Click **Export CSS** to copy/download CSS representing your current settings
 
 ### Production Build
