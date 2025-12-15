@@ -189,7 +189,7 @@ const Controller = ({ sidebarMode, setSidebarMode }) => {
                                                     updateFallbackFontOverride={updateFallbackFontOverride}
                                                     resetFallbackFontOverrides={resetFallbackFontOverrides}
                                                     setActiveFont={setActiveFont}
-                                                    handleRemove={() => {}}
+                                                    handleRemove={() => { }}
                                                     updateFontWeight={updateFontWeight}
                                                 />
                                             )}
@@ -221,12 +221,29 @@ const Controller = ({ sidebarMode, setSidebarMode }) => {
                                                             step="5"
                                                             value={fontScales.fallback}
                                                             onChange={(e) => {
-                                                                const val = parseInt(e.target.value) || 25;
+                                                                const val = e.target.value;
+                                                                if (val === '') {
+                                                                    setFontScales(prev => ({ ...prev, fallback: '' }));
+                                                                } else {
+                                                                    const parsed = parseInt(val);
+                                                                    setFontScales(prev => ({
+                                                                        ...prev,
+                                                                        fallback: isNaN(parsed) ? '' : parsed
+                                                                    }));
+                                                                }
+                                                                setIsFallbackLinked(false);
+                                                            }}
+                                                            onBlur={(e) => {
+                                                                let val = parseInt(e.target.value);
+                                                                if (isNaN(val)) {
+                                                                    val = 100; // default
+                                                                } else {
+                                                                    val = Math.max(25, Math.min(300, val));
+                                                                }
                                                                 setFontScales(prev => ({
                                                                     ...prev,
-                                                                    fallback: Math.max(25, Math.min(300, val))
+                                                                    fallback: val
                                                                 }));
-                                                                setIsFallbackLinked(false);
                                                             }}
                                                             className="w-12 text-right font-mono text-xs bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
                                                         />

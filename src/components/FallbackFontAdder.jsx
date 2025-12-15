@@ -246,3 +246,4 @@ FallbackFontAdder.propTypes = {
 
 export default FallbackFontAdder;
 
+

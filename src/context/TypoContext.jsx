@@ -251,6 +251,7 @@ export const TypoProvider = ({ children }) => {
     const [textCase, setTextCase] = useState('none');
     const [viewMode, setViewMode] = useState('h1');
     const [gridColumns, setGridColumns] = useState(1);
+    const [showFallbackColors, setShowFallbackColors] = useState(true);
     const [colors, setColors] = useState({
         primary: '#0f172a',
         missing: '#ff0000',
@@ -960,6 +961,8 @@ export const TypoProvider = ({ children }) => {
             viewMode,
             setViewMode,
             fallbackOptions,
+            showFallbackColors,
+            setShowFallbackColors,
             isFallbackLinked,
             setIsFallbackLinked,
             headerStyles,

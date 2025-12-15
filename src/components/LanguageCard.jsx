@@ -22,7 +22,8 @@ const LanguageCard = ({ language }) => {
         getEffectiveFontSettingsForStyle,
         getFontColorForStyle,
         fontStyles,
-        activeFontStyleId
+        activeFontStyleId,
+        showFallbackColors
     } = useTypo();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -195,7 +196,10 @@ const LanguageCard = ({ language }) => {
 
                     const fonts = getFontsForStyle(styleId);
                     const fontIndex = fonts.findIndex(f => f.id === usedFallback.fontId);
-                    const fontColor = fontIndex >= 0 ? getFontColorForStyle(styleId, fontIndex) : colors.missing;
+                    const baseColor = fontIndex >= 0 ? getFontColorForStyle(styleId, fontIndex) : colors.missing;
+                    const fontColor = showFallbackColors
+                        ? baseColor
+                        : getFontColorForStyle(styleId, 0);
 
                     const fontObj = fonts[fontIndex];
                     const isVariable = fontObj?.isVariable;
@@ -223,7 +227,7 @@ const LanguageCard = ({ language }) => {
         });
 
         return result;
-    }, [buildFallbackFontStackForStyle, contentToRender, colors.missing, fontStyles, getEffectiveFontSettingsForStyle, getFallbackScaleOverrideForStyle, getFontColorForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id]);
+    }, [buildFallbackFontStackForStyle, contentToRender, colors.missing, fontStyles, getEffectiveFontSettingsForStyle, getFallbackScaleOverrideForStyle, getFontColorForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id, showFallbackColors]);
 
     if (!fontObject) return null;
 

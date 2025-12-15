@@ -56,7 +56,7 @@ export const SortableFontCard = ({
     const weightOptions = buildWeightSelectOptions(font);
     const resolvedWeight = resolveWeightToAvailableOption(font, effectiveWeight);
 
-    const globalLineHeightPct = Math.round((typeof globalLineHeight === 'number' ? globalLineHeight : 1.2) * 100);
+    const globalLineHeightPct = globalLineHeight === '' ? '' : Math.round((Number(globalLineHeight) || 1.2) * 100);
     const globalLetterSpacingEm = typeof globalLetterSpacing === 'number' ? globalLetterSpacing : 0;
 
     const isInheritingGlobalWeight = font.type === 'fallback' && (font.weightOverride === undefined || font.weightOverride === null || font.weightOverride === '');
@@ -257,10 +257,24 @@ export const SortableFontCard = ({
                                         step="5"
                                         value={globalLineHeightPct}
                                         onChange={(e) => {
-                                            const parsed = parseInt(e.target.value);
-                                            if (isNaN(parsed)) return;
-                                            const constrained = Math.max(50, Math.min(300, parsed));
-                                            setGlobalLineHeight?.(constrained / 100);
+                                            const val = e.target.value;
+                                            if (val === '') {
+                                                setGlobalLineHeight?.('');
+                                            } else {
+                                                const parsed = parseFloat(val);
+                                                if (!isNaN(parsed)) {
+                                                    setGlobalLineHeight?.(parsed / 100);
+                                                }
+                                            }
+                                        }}
+                                        onBlur={(e) => {
+                                            const val = parseFloat(e.target.value);
+                                            if (isNaN(val)) {
+                                                setGlobalLineHeight?.(1.2);
+                                            } else {
+                                                const constrained = Math.max(50, Math.min(300, val));
+                                                setGlobalLineHeight?.(constrained / 100);
+                                            }
                                         }}
                                         className="w-12 text-right font-mono bg-transparent border-b border-slate-300 focus:border-indigo-600 focus:outline-none px-1"
                                     />

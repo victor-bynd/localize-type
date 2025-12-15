@@ -8,7 +8,7 @@ import LanguageSelectorModal from './components/LanguageSelectorModal';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const MainContent = ({ sidebarMode, setSidebarMode }) => {
-  const { fontObject, fontStyles, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages } = useTypo();
+  const { fontObject, fontStyles, gridColumns, setGridColumns, viewMode, setViewMode, textCase, setTextCase, visibleLanguages, visibleLanguageIds, languages, showFallbackColors, setShowFallbackColors } = useTypo();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [showListSettings, setShowListSettings] = useState(false);
   const listSettingsRef = useRef(null);
@@ -193,6 +193,27 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
                           </svg>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Fallback Color Toggle */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Toggle Fallback Colors</span>
+                      </div>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={showFallbackColors}
+                        onClick={() => setShowFallbackColors(!showFallbackColors)}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${showFallbackColors ? 'bg-indigo-600' : 'bg-slate-200'
+                          }`}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={`${showFallbackColors ? 'translate-x-[18px]' : 'translate-x-0.5'
+                            } pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out`}
+                        />
+                      </button>
                     </div>
                   </div>
                 )}
