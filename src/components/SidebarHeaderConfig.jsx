@@ -93,7 +93,7 @@ const SidebarHeaderConfig = ({ onBack }) => {
                             </div>
 
                             {/* Font Size Slider */}
-                            <input
+                                <input
                                 type="range"
                                 min="0.1"
                                 max="2.0"
@@ -102,6 +102,8 @@ const SidebarHeaderConfig = ({ onBack }) => {
                                 onChange={(e) => handleScaleChange(tag, e.target.value)}
                                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                             />
+
+
 
                             {/* Line Height Control */}
                             <div>

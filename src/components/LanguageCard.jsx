@@ -372,7 +372,7 @@ const LanguageCard = ({ language }) => {
                                             fontSize: `${finalSizePx}px`,
                                             fontWeight: primarySettings.weight || 400,
                                             fontVariationSettings: primaryFont?.isVariable ? `'wght' ${primarySettings.weight || 400}` : undefined,
-                                            lineHeight: forcedLineHeight ?? headerStyle.lineHeight,
+                                            lineHeight: headerStyle.lineHeight ?? forcedLineHeight,
                                             letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                             textTransform: textCase
                                         }}
@@ -420,7 +420,7 @@ const LanguageCard = ({ language }) => {
                                     fontSize: `${finalSizePx}px`,
                                     fontWeight: weight,
                                     fontVariationSettings: isVariable ? `'wght' ${weight}` : undefined,
-                                    lineHeight: forcedLineHeight ?? headerStyle.lineHeight,
+                                    lineHeight: headerStyle.lineHeight ?? forcedLineHeight,
                                     letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                     textTransform: textCase
                                 }}

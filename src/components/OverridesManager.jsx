@@ -11,7 +11,11 @@ const OverridesManager = () => {
         resetAllFallbackFontOverridesForStyle,
         resetAllLineHeightOverridesForStyle,
         clearFallbackFontOverrideForStyle,
-        updateLineHeightOverrideForStyle
+        updateLineHeightOverrideForStyle,
+        headerOverrides,
+        DEFAULT_HEADER_STYLES,
+        resetHeaderStyle,
+        resetAllHeaderStyles
     } = useTypo();
 
     // Collect all overrides
@@ -76,6 +80,13 @@ const OverridesManager = () => {
     const primary = getStyleOverrides('primary');
     const secondary = getStyleOverrides('secondary');
 
+    // Header overrides are tracked explicitly in context (only manual changes appear here)
+    const headerOverrideList = Object.entries(headerOverrides || {}).map(([tag, props]) => {
+        const changed = Object.keys(props || {}).filter(p => !!props[p]);
+        if (changed.length === 0) return null;
+        return { tag, changed };
+    }).filter(Boolean);
+
     const totalOverrides =
         (primary.hasGlobalFallbackScale ? 1 : 0) +
         primary.fontLevelOverrides.length +
@@ -86,14 +97,56 @@ const OverridesManager = () => {
         secondary.languageLevelOverrides.length +
         secondary.lineHeightOverridesList.length;
 
-    if (totalOverrides === 0) return null;
+    const totalWithHeader = totalOverrides + headerOverrideList.length;
+
+    if (totalWithHeader === 0) return null;
 
     return (
         <div>
             <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-2">
-                Active Overrides ({totalOverrides})
+                Active Overrides ({totalWithHeader})
             </label>
             <div className="space-y-3">
+                {headerOverrideList.length > 0 && (
+                    <div className="bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                        <div className="px-3 py-2 bg-slate-100/80 border-b border-slate-200 flex items-center justify-between">
+                            <div className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Header Styles ({headerOverrideList.length})</div>
+                            <button
+                                onClick={() => {
+                                    if (confirm('Reset all header style overrides? This cannot be undone.')) {
+                                        resetAllHeaderStyles();
+                                    }
+                                }}
+                                className="text-[10px] font-bold text-rose-600 hover:text-rose-700 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                                title={`Reset all header overrides`}
+                                type="button"
+                            >
+                                Reset Headers
+                            </button>
+                        </div>
+
+                        <div className="divide-y divide-slate-200">
+                            {headerOverrideList.map(h => (
+                                <div key={h.tag} className="p-3 flex items-start justify-between gap-2">
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-xs font-semibold text-slate-700 truncate">{h.tag.toUpperCase()}</div>
+                                        <div className="text-[10px] text-slate-500 mt-0.5">{h.changed.map(c => `• ${c}`).join(' ')}</div>
+                                    </div>
+                                    <button
+                                        onClick={() => {
+                                            resetHeaderStyle(h.tag);
+                                        }}
+                                        className="flex-shrink-0 text-[10px] font-bold text-rose-500 hover:text-rose-700 px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                                        title="Reset header overrides"
+                                        type="button"
+                                    >
+                                        Reset
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
                 {(['primary', 'secondary']).map(styleId => {
                     const group = styleId === 'primary' ? primary : secondary;
                     const styleLabel = styleId === 'primary' ? 'Primary' : 'Secondary';

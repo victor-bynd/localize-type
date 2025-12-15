@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from 'react';
+import { createContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { fallbackOptions, DEFAULT_PALETTE } from '../data/constants';
 import languages from '../data/languages.json';
 import { resolveWeightForFont } from '../utils/weightUtils';
@@ -64,14 +64,85 @@ export const TypoProvider = ({ children }) => {
     const fontUrl = primaryFont?.fontUrl || null;
     const fileName = primaryFont?.fileName || null;
 
-    const [headerStyles, setHeaderStyles] = useState({
+    const DEFAULT_HEADER_STYLES = useMemo(() => ({
         h1: { scale: 1.0, lineHeight: 1.2, letterSpacing: 0 },
         h2: { scale: 0.8, lineHeight: 1.2, letterSpacing: 0 },
         h3: { scale: 0.6, lineHeight: 1.2, letterSpacing: 0 },
         h4: { scale: 0.5, lineHeight: 1.2, letterSpacing: 0 },
         h5: { scale: 0.4, lineHeight: 1.2, letterSpacing: 0 },
         h6: { scale: 0.3, lineHeight: 1.2, letterSpacing: 0 }
-    });
+    }), []);
+
+    const [headerStyles, setHeaderStyles] = useState(() => ({ ...DEFAULT_HEADER_STYLES }));
+
+    // Track which header properties have been manually overridden by the user.
+    const [headerOverrides, setHeaderOverrides] = useState(() => ({
+        h1: {}, h2: {}, h3: {}, h4: {}, h5: {}, h6: {}
+    }));
+
+    const markHeaderOverride = useCallback((tag, property, value = true) => {
+        setHeaderOverrides(prev => ({
+            ...prev,
+            [tag]: {
+                ...(prev[tag] || {}),
+                [property]: value
+            }
+        }));
+    }, []);
+
+    const clearHeaderOverride = (tag, property) => {
+        setHeaderOverrides(prev => {
+            const next = { ...(prev || {}) };
+            if (!next[tag]) return prev;
+            const copy = { ...next[tag] };
+            delete copy[property];
+            next[tag] = copy;
+            return next;
+        });
+    };
+
+    const resetHeaderStyleProperty = (tag, property) => {
+        setHeaderStyles(prev => ({
+            ...prev,
+            [tag]: {
+                ...prev[tag],
+                [property]: DEFAULT_HEADER_STYLES[tag][property]
+            }
+        }));
+        clearHeaderOverride(tag, property);
+    };
+
+    const resetHeaderStyle = (tag) => {
+        setHeaderStyles(prev => ({ ...prev, [tag]: { ...DEFAULT_HEADER_STYLES[tag] } }));
+        setHeaderOverrides(prev => ({ ...prev, [tag]: {} }));
+    };
+
+    const resetAllHeaderStyles = () => {
+        setHeaderStyles({ ...DEFAULT_HEADER_STYLES });
+        setHeaderOverrides({ h1: {}, h2: {}, h3: {}, h4: {}, h5: {}, h6: {} });
+    };
+
+    // updateHeaderStyle: source 'manual' marks an override; source 'sync' mirrors main style only if not overridden
+    const updateHeaderStyle = useCallback((tag, property, value, source = 'manual') => {
+        // If this is a sync from main-style and the property is overridden, don't apply
+        if (source === 'sync' && headerOverrides?.[tag]?.[property]) {
+            return;
+        }
+
+        setHeaderStyles(prev => ({
+            ...prev,
+            [tag]: {
+                ...prev[tag],
+                [property]: value
+            }
+        }));
+
+        if (source === 'manual') {
+            markHeaderOverride(tag, property, true);
+        }
+    }, [headerOverrides, markHeaderOverride]);
+
+    
 
     // Content Overrides
     const [textOverrides, setTextOverrides] = useState({});
@@ -149,6 +220,20 @@ export const TypoProvider = ({ children }) => {
             letterSpacing: typeof valueOrUpdater === 'function' ? valueOrUpdater(prev.letterSpacing) : valueOrUpdater
         }));
     };
+
+    // Mirror selected main-style properties into headers unless the header property has been overridden.
+    // We mirror `lineHeight` and `letterSpacing` so header styles follow main font tab changes by default.
+    useEffect(() => {
+        // Read values directly from the currently active main style so we don't rely on local bindings
+        const currentStyle = fontStyles?.[activeFontStyleId] || {};
+        const lh = currentStyle.lineHeight;
+        const ls = currentStyle.letterSpacing;
+
+        Object.keys(DEFAULT_HEADER_STYLES).forEach(tag => {
+            updateHeaderStyle(tag, 'lineHeight', lh, 'sync');
+            updateHeaderStyle(tag, 'letterSpacing', ls, 'sync');
+        });
+    }, [fontStyles, activeFontStyleId, DEFAULT_HEADER_STYLES, updateHeaderStyle]);
 
     const weight = activeStyle.weight;
     const setWeight = (valueOrUpdater) => {
@@ -859,22 +944,20 @@ export const TypoProvider = ({ children }) => {
             setIsFallbackLinked,
             headerStyles,
             setHeaderStyles,
+            DEFAULT_HEADER_STYLES,
+            headerOverrides,
+            markHeaderOverride,
+            clearHeaderOverride,
+            resetHeaderStyleProperty,
+            resetHeaderStyle,
+            resetAllHeaderStyles,
+            updateHeaderStyle,
             headerFontStyleMap,
             setHeaderFontStyle,
             // Backward compatibility: expose headerScales as computed value
             headerScales: Object.fromEntries(
                 Object.entries(headerStyles).map(([tag, style]) => [tag, style.scale])
             ),
-            // Helper to update individual header properties
-            updateHeaderStyle: (tag, property, value) => {
-                setHeaderStyles(prev => ({
-                    ...prev,
-                    [tag]: {
-                        ...prev[tag],
-                        [property]: value
-                    }
-                }));
-            },
             textOverrides,
             setTextOverride,
             resetTextOverride
