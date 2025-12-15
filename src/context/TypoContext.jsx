@@ -142,8 +142,6 @@ export const TypoProvider = ({ children }) => {
         }
     }, [headerOverrides, markHeaderOverride]);
 
-    
-
     // Content Overrides
     const [textOverrides, setTextOverrides] = useState({});
 
@@ -850,6 +848,28 @@ export const TypoProvider = ({ children }) => {
         setHeaderFontStyleMap(prev => ({ ...prev, [tag]: styleId }));
     };
 
+    const resetHeaderLineHeightOverride = useCallback((tag) => {
+        const styleId = headerFontStyleMap?.[tag] || activeFontStyleId || 'primary';
+        const lh = fontStyles?.[styleId]?.lineHeight ?? DEFAULT_HEADER_STYLES?.[tag]?.lineHeight ?? 1.2;
+
+        setHeaderStyles(prev => ({
+            ...prev,
+            [tag]: {
+                ...prev[tag],
+                lineHeight: lh
+            }
+        }));
+
+        setHeaderOverrides(prev => {
+            const next = { ...(prev || {}) };
+            if (!next[tag]) return prev;
+            const copy = { ...next[tag] };
+            delete copy.lineHeight;
+            next[tag] = copy;
+            return next;
+        });
+    }, [headerFontStyleMap, activeFontStyleId, fontStyles, DEFAULT_HEADER_STYLES]);
+
     return (
         <TypoContext.Provider value={{
             languages,
@@ -952,6 +972,7 @@ export const TypoProvider = ({ children }) => {
             resetHeaderStyle,
             resetAllHeaderStyles,
             updateHeaderStyle,
+            resetHeaderLineHeightOverride,
             headerFontStyleMap,
             setHeaderFontStyle,
             // Backward compatibility: expose headerScales as computed value

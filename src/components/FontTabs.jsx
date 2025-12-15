@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import { useTypo } from '../context/useTypo';
 import FallbackFontAdder from './FallbackFontAdder';
 import { buildWeightSelectOptions, resolveWeightToAvailableOption } from '../utils/weightUtils';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { createFontUrl, parseFontFile } from '../services/FontLoader';
 
 export const SortableFontCard = ({
     font,
@@ -29,6 +30,9 @@ export const SortableFontCard = ({
     handleRemove,
     updateFontWeight
 }) => {
+    const { loadFont } = useTypo();
+    const replacePrimaryInputRef = useRef(null);
+
     const {
         attributes,
         listeners,
@@ -64,14 +68,54 @@ export const SortableFontCard = ({
             style={style}
             className={`
                 bg-slate-50 rounded-lg p-3 border transition-all relative
-                ${isPrimary ? 'cursor-pointer' : ''}
-                ${isActive
+                ${isPrimary ? '' : 'cursor-pointer'}
+                ${isActive && !isPrimary
                     ? 'border-indigo-500 ring-2 ring-indigo-500/20'
                     : 'border-slate-200 hover:border-slate-300'
                 }
             `}
-            onClick={() => setActiveFont(font.id)}
+            onClick={isPrimary ? undefined : () => setActiveFont(font.id)}
         >
+            {font.type === 'primary' && (
+                <>
+                    <input
+                        ref={replacePrimaryInputRef}
+                        type="file"
+                        className="hidden"
+                        accept=".ttf,.otf,.woff,.woff2"
+                        onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+
+                            try {
+                                const { font: parsedFont, metadata } = await parseFontFile(file);
+                                const url = createFontUrl(file);
+                                loadFont(parsedFont, url, file.name, metadata);
+                            } catch (err) {
+                                console.error('Error loading font:', err);
+                                alert('Failed to load font file.');
+                            } finally {
+                                e.target.value = '';
+                            }
+                        }}
+                    />
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            replacePrimaryInputRef.current?.click();
+                        }}
+                        className="absolute top-2 right-2 text-slate-400 hover:text-indigo-600 transition-colors p-1 z-10"
+                        title="Replace main font"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        type="button"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 112.652 2.652L8.25 17.403a4.5 4.5 0 01-1.897 1.13l-2.685.895.895-2.685a4.5 4.5 0 011.13-1.897L16.862 3.487z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 6l-1.5-1.5" />
+                        </svg>
+                    </button>
+                </>
+            )}
             {font.type !== 'primary' && (
                 <button
                     onClick={(e) => handleRemove(e, font.id)}
@@ -159,20 +203,27 @@ export const SortableFontCard = ({
                                 <span>Weight</span>
                                 <span className="text-slate-400 font-mono text-[10px]">{effectiveWeight}</span>
                             </div>
-                            <select
-                                value={resolvedWeight}
-                                onChange={(e) => {
-                                    const raw = e.target.value;
-                                    updateFontWeight(font.id, parseInt(raw));
-                                }}
-                                className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                            >
-                                {weightOptions.map(opt => (
-                                    <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <select
+                                    value={resolvedWeight}
+                                    onChange={(e) => {
+                                        const raw = e.target.value;
+                                        updateFontWeight(font.id, parseInt(raw));
+                                    }}
+                                    className="w-full bg-white border border-gray-200 rounded-md pl-3 pr-10 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                                >
+                                    {weightOptions.map(opt => (
+                                        <option key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
                         </div>
 
                         {/* Line Height */}
@@ -297,20 +348,27 @@ export const SortableFontCard = ({
                                             </button>
                                         )}
                                     </div>
-                                    <select
-                                        value={resolvedWeight}
-                                        onChange={(e) => {
-                                            const raw = e.target.value;
-                                            updateFontWeight(font.id, parseInt(raw));
-                                        }}
-                                        className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
-                                    >
-                                        {weightOptions.map(opt => (
-                                            <option key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </option>
-                                        ))}
-                                    </select>
+                                    <div className="relative">
+                                        <select
+                                            value={resolvedWeight}
+                                            onChange={(e) => {
+                                                const raw = e.target.value;
+                                                updateFontWeight(font.id, parseInt(raw));
+                                            }}
+                                            className="w-full bg-white border border-gray-200 rounded-md pl-3 pr-10 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                                        >
+                                            {weightOptions.map(opt => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-slate-400">
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 {/* Font Scale Slider */}

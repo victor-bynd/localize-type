@@ -52,11 +52,14 @@ const OverridesManager = () => {
             .map(([langId, fontId]) => {
                 const language = languages.find(l => l.id === langId);
                 const font = fonts.find(f => f.id === fontId);
+                const resolvedFontName = fontId === 'legacy'
+                    ? 'System'
+                    : (font?.fileName?.replace(/\.[^/.]+$/, '') || font?.name || 'Unknown Font');
                 return {
                     type: 'language-level',
                     langId,
                     languageName: language?.name || 'Unknown',
-                    fontName: font?.fileName?.replace(/\.[^/.]+$/, '') || font?.name || 'Unknown Font'
+                    fontName: resolvedFontName
                 };
             });
 
@@ -91,11 +94,7 @@ const OverridesManager = () => {
         (primary.hasGlobalFallbackScale ? 1 : 0) +
         primary.fontLevelOverrides.length +
         primary.languageLevelOverrides.length +
-        primary.lineHeightOverridesList.length +
-        (secondary.hasGlobalFallbackScale ? 1 : 0) +
-        secondary.fontLevelOverrides.length +
-        secondary.languageLevelOverrides.length +
-        secondary.lineHeightOverridesList.length;
+        primary.lineHeightOverridesList.length;
 
     const totalWithHeader = totalOverrides + headerOverrideList.length;
 
@@ -147,7 +146,7 @@ const OverridesManager = () => {
                         </div>
                     </div>
                 )}
-                {(['primary', 'secondary']).map(styleId => {
+                {(['primary']).map(styleId => {
                     const group = styleId === 'primary' ? primary : secondary;
                     const styleLabel = styleId === 'primary' ? 'Primary' : 'Secondary';
                     const style = fontStyles?.[styleId];
@@ -268,9 +267,9 @@ const OverridesManager = () => {
                     <div className="p-3 bg-slate-100">
                         <button
                             onClick={() => {
-                                if (confirm('Reset all overrides for Primary and Secondary? This cannot be undone.')) {
-                                    ['primary', 'secondary'].forEach(styleId => {
-                                        const group = styleId === 'primary' ? primary : secondary;
+                                if (confirm('Reset all overrides for Primary? This cannot be undone.')) {
+                                    ['primary'].forEach(styleId => {
+                                        const group = primary;
                                         if (group.hasGlobalFallbackScale) resetGlobalFallbackScaleForStyle(styleId);
                                         group.fontLevelOverrides.forEach(o => resetFallbackFontOverridesForStyle(styleId, o.fontId));
                                         resetAllFallbackFontOverridesForStyle(styleId);
@@ -281,7 +280,7 @@ const OverridesManager = () => {
                             className="w-full py-2 text-[10px] font-bold text-rose-600 border border-rose-300 rounded hover:bg-rose-50 transition-colors"
                             type="button"
                         >
-                            Reset All Overrides (Both Styles)
+                            Reset All Overrides
                         </button>
                     </div>
                 </div>

@@ -15,7 +15,8 @@ const CSSExporter = ({ onClose, languages = [] }) => {
         prettyPrint: true
     };
 
-    const cssCode = generateCSS(context, languages, options);
+    const exportedLanguages = (languages && languages.length > 0) ? languages : (context.languages || []);
+    const cssCode = generateCSS(context, exportedLanguages, options);
 
     const handleCopy = async () => {
         try {

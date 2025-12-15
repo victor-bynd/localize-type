@@ -1,7 +1,7 @@
 import { useTypo } from '../context/useTypo';
 
-const SidebarHeaderConfig = ({ onBack }) => {
-    const { headerStyles, updateHeaderStyle, fontSizes, headerFontStyleMap, setHeaderFontStyle } = useTypo();
+const SidebarHeaderConfig = () => {
+    const { headerStyles, updateHeaderStyle, fontSizes, headerOverrides, resetHeaderLineHeightOverride } = useTypo();
 
     const handleScaleChange = (tag, value) => {
         updateHeaderStyle(tag, 'scale', parseFloat(value));
@@ -22,12 +22,6 @@ const SidebarHeaderConfig = ({ onBack }) => {
         <div className="flex flex-col gap-6 animate-fade-in">
             {/* Header / Back Button */}
             <div className="flex items-center gap-2 pb-4 border-b border-gray-100">
-                <button
-                    onClick={onBack}
-                    className="p-1.5 -ml-2 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
-                </button>
                 <h3 className="font-bold text-slate-800 text-sm">Header Styles</h3>
             </div>
 
@@ -35,7 +29,6 @@ const SidebarHeaderConfig = ({ onBack }) => {
                 {['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map(tag => {
                     const style = headerStyles[tag];
                     const pxValue = Math.round(style.scale * fontSizes.active);
-                    const currentStyle = headerFontStyleMap?.[tag] || 'primary';
 
                     return (
                         <div key={tag} className="space-y-3">
@@ -69,48 +62,29 @@ const SidebarHeaderConfig = ({ onBack }) => {
                                     </div>
                                 </div>
 
-                                {/* Tab-like Style Switcher */}
-                                <div className="bg-slate-100 p-0.5 rounded-md flex">
-                                    <button
-                                        onClick={() => setHeaderFontStyle(tag, 'primary')}
-                                        className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all ${currentStyle === 'primary'
-                                            ? 'bg-white text-indigo-600 shadow-sm'
-                                            : 'text-slate-400 hover:text-slate-600'
-                                            }`}
-                                    >
-                                        Primary
-                                    </button>
-                                    <button
-                                        onClick={() => setHeaderFontStyle(tag, 'secondary')}
-                                        className={`flex-1 py-1 text-[10px] font-bold uppercase tracking-wider rounded-sm transition-all ${currentStyle === 'secondary'
-                                            ? 'bg-white text-indigo-600 shadow-sm'
-                                            : 'text-slate-400 hover:text-slate-600'
-                                            }`}
-                                    >
-                                        Secondary
-                                    </button>
-                                </div>
+                                {/* Style selector hidden (primary/secondary UI removed) */}
                             </div>
 
                             {/* Font Size Slider */}
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider w-20 whitespace-nowrap">Font Size</span>
                                 <input
-                                type="range"
-                                min="0.1"
-                                max="2.0"
-                                step="0.05"
-                                value={style.scale}
-                                onChange={(e) => handleScaleChange(tag, e.target.value)}
-                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                            />
+                                    type="range"
+                                    min="0.1"
+                                    max="2.0"
+                                    step="0.05"
+                                    value={style.scale}
+                                    onChange={(e) => handleScaleChange(tag, e.target.value)}
+                                    className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                />
+                                <span className="w-14 text-right font-mono text-[10px] text-slate-400">{pxValue}px</span>
+                            </div>
 
 
 
                             {/* Line Height Control */}
-                            <div>
-                                <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                    <span>Line Height</span>
-                                    <span className="font-mono text-slate-400">{style.lineHeight}</span>
-                                </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider w-20 whitespace-nowrap">Line Height</span>
                                 <input
                                     type="range"
                                     min="0.8"
@@ -118,8 +92,23 @@ const SidebarHeaderConfig = ({ onBack }) => {
                                     step="0.1"
                                     value={style.lineHeight}
                                     onChange={(e) => handleLineHeightChange(tag, e.target.value)}
-                                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                    className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                                 />
+                                <div className="w-14 flex items-center justify-end gap-2">
+                                    {headerOverrides?.[tag]?.lineHeight ? (
+                                        <button
+                                            onClick={() => resetHeaderLineHeightOverride(tag)}
+                                            className="text-[10px] font-bold text-slate-400 hover:text-indigo-600"
+                                            type="button"
+                                            title="Follow main line height"
+                                        >
+                                            Reset
+                                        </button>
+                                    ) : (
+                                        <span className="text-[10px] font-bold text-slate-400">Auto</span>
+                                    )}
+                                    <span className="font-mono text-[10px] text-slate-400">{style.lineHeight}</span>
+                                </div>
                             </div>
                         </div>
                     );
