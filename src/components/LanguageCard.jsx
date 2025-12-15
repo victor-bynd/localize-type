@@ -16,6 +16,8 @@ const LanguageCard = ({ language }) => {
         getFontsForStyle,
         getPrimaryFontFromStyle,
         getFallbackFontOverrideForStyle,
+        setFallbackFontOverrideForStyle,
+        clearFallbackFontOverrideForStyle,
         getFallbackScaleOverrideForStyle,
         getEffectiveFontSettingsForStyle,
         getFontColorForStyle,
@@ -233,6 +235,17 @@ const LanguageCard = ({ language }) => {
     const metricsPrimaryFontObject = metricsPrimaryFont?.fontObject;
     const metricsFallbackFontStack = buildFallbackFontStackForStyle(activeMetricsStyleId);
 
+    const fallbackOverrideFontId = getFallbackFontOverrideForStyle(activeMetricsStyleId, language.id) || '';
+    const fallbackOverrideOptions = useMemo(() => {
+        const fonts = getFontsForStyle(activeMetricsStyleId) || [];
+        return fonts
+            .filter(f => f.type === 'fallback')
+            .map(f => ({
+                id: f.id,
+                label: f.fileName?.replace(/\.[^/.]+$/, '') || f.name || 'Unnamed Font'
+            }));
+    }, [activeMetricsStyleId, getFontsForStyle]);
+
     const missingChars = metricsPrimaryFontObject
         ? contentToRender.replace(/\s/g, '').split('').filter(char => {
             if (metricsPrimaryFontObject.charToGlyphIndex(char) !== 0) return false;
@@ -260,7 +273,12 @@ const LanguageCard = ({ language }) => {
         <div className="bg-white border border-gray-200/60 rounded-xl overflow-hidden shadow-[0_2px_12px_-4px_rgba(0,0,0,0.08)] hover:shadow-[0_4px_16px_-4px_rgba(0,0,0,0.12)] transition-shadow duration-300">
             <div className="bg-slate-50/50 px-5 py-3 border-b border-gray-100 flex justify-between items-center backdrop-blur-sm">
                 <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-sm text-slate-800 tracking-tight">{language.name}</h3>
+                    <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="font-bold text-sm text-slate-800 tracking-tight truncate">{language.name}</h3>
+                        <span className="text-[10px] font-mono text-slate-600 bg-slate-200/60 border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
+                            {language.id}
+                        </span>
+                    </div>
 
                     {/* Edit Toggle */}
                     <button
@@ -279,6 +297,33 @@ const LanguageCard = ({ language }) => {
                 </div>
                 <div className="flex items-center gap-2">
 
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FONT OVERRIDE</span>
+                    <div className="relative">
+                        <select
+                            value={fallbackOverrideFontId}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (!val) {
+                                    clearFallbackFontOverrideForStyle(activeMetricsStyleId, language.id);
+                                } else {
+                                    setFallbackFontOverrideForStyle(activeMetricsStyleId, language.id, val);
+                                }
+                            }}
+                            className="bg-white border border-gray-200 rounded-md pl-2 pr-8 py-1 text-[11px] text-slate-700 font-medium focus:outline-none cursor-pointer appearance-none min-w-[120px]"
+                            title="Fallback override"
+                        >
+                            <option value="">Auto</option>
+                            <option value="legacy">System</option>
+                            {fallbackOverrideOptions.map(opt => (
+                                <option key={opt.id} value={opt.id}>{opt.label}</option>
+                            ))}
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-slate-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
 
                     <div
                         className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border ${isSystemFont
@@ -321,7 +366,7 @@ const LanguageCard = ({ language }) => {
                         </button>
                         <button
                             onClick={handleSave}
-                            className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm"
+                            className="px-4 py-1.5 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
                         >
                             Save Changes
                         </button>
@@ -372,7 +417,7 @@ const LanguageCard = ({ language }) => {
                                             fontSize: `${finalSizePx}px`,
                                             fontWeight: primarySettings.weight || 400,
                                             fontVariationSettings: primaryFont?.isVariable ? `'wght' ${primarySettings.weight || 400}` : undefined,
-                                            lineHeight: forcedLineHeight ?? headerStyle.lineHeight,
+                                            lineHeight: headerStyle.lineHeight ?? forcedLineHeight,
                                             letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                             textTransform: textCase
                                         }}
@@ -420,7 +465,7 @@ const LanguageCard = ({ language }) => {
                                     fontSize: `${finalSizePx}px`,
                                     fontWeight: weight,
                                     fontVariationSettings: isVariable ? `'wght' ${weight}` : undefined,
-                                    lineHeight: forcedLineHeight ?? headerStyle.lineHeight,
+                                    lineHeight: headerStyle.lineHeight ?? forcedLineHeight,
                                     letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                     textTransform: textCase
                                 }}

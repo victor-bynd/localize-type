@@ -125,9 +125,9 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                 <button
                     onClick={() => setMode('name')}
                     className={clsx(
-                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all",
+                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all border border-transparent",
                         mode === 'name'
-                            ? 'bg-white text-indigo-600 shadow-sm'
+                            ? 'bg-white text-indigo-600 border-gray-200'
                             : 'text-slate-500 hover:text-slate-700'
                     )}
                 >
@@ -136,9 +136,9 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                 <button
                     onClick={() => setMode('upload')}
                     className={clsx(
-                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all",
+                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all border border-transparent",
                         mode === 'upload'
-                            ? 'bg-white text-indigo-600 shadow-sm'
+                            ? 'bg-white text-indigo-600 border-gray-200'
                             : 'text-slate-500 hover:text-slate-700'
                     )}
                 >
@@ -163,7 +163,7 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                                 }
                             }}
                             placeholder="e.g., Arial, sans-serif or 'Roboto', sans-serif"
-                            className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                            className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         />
                         <p className="text-[10px] text-slate-400 mt-1">
                             Enter a system or web font name
@@ -172,7 +172,7 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                     <button
                         onClick={handleNameSubmit}
                         disabled={!fontName.trim() || isProcessing}
-                        className="w-full px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="w-full px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         Add Font
                     </button>

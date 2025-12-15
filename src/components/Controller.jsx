@@ -19,10 +19,9 @@ import {
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-const Controller = () => {
+const Controller = ({ sidebarMode, setSidebarMode }) => {
     const {
         activeFontStyleId,
-        setActiveFontStyleId,
         fonts,
         activeFont,
         setActiveFont,
@@ -39,8 +38,8 @@ const Controller = () => {
         fontScales,
         setFontScales,
 
-        setHeaderStyles,
         headerFontStyleMap,
+        updateHeaderStyle,
         fontStyles,
         loadFont,
         weight,
@@ -53,9 +52,9 @@ const Controller = () => {
         copyFontsFromPrimaryToSecondary
     } = useTypo();
 
-    const isSecondaryEmpty = activeFontStyleId === 'secondary' && (!fontStyles?.secondary?.fonts || fontStyles.secondary.fonts.length === 0);
+    const enableSecondary = false;
+    const isSecondaryEmpty = enableSecondary && activeFontStyleId === 'secondary' && (!fontStyles?.secondary?.fonts || fontStyles.secondary.fonts.length === 0);
 
-    const [sidebarMode, setSidebarMode] = useState('main'); // 'main' | 'headers'
     const [showCSSExporter, setShowCSSExporter] = useState(false);
 
     const sensors = useSensors(
@@ -71,29 +70,21 @@ const Controller = () => {
 
     const setGlobalLineHeight = (val) => {
         setLineHeight(val);
-        setHeaderStyles(prev => {
-            const updated = { ...prev };
-            Object.keys(prev).forEach(tag => {
-                const assignedStyle = headerFontStyleMap[tag] || 'primary';
-                if (assignedStyle === activeFontStyleId) {
-                    updated[tag] = { ...prev[tag], lineHeight: val };
-                }
-            });
-            return updated;
+        Object.keys(headerFontStyleMap || {}).forEach(tag => {
+            const assignedStyle = headerFontStyleMap[tag] || 'primary';
+            if (assignedStyle === activeFontStyleId) {
+                updateHeaderStyle(tag, 'lineHeight', val, 'sync');
+            }
         });
     };
 
     const setGlobalLetterSpacing = (val) => {
         setLetterSpacing(val);
-        setHeaderStyles(prev => {
-            const updated = { ...prev };
-            Object.keys(prev).forEach(tag => {
-                const assignedStyle = headerFontStyleMap[tag] || 'primary';
-                if (assignedStyle === activeFontStyleId) {
-                    updated[tag] = { ...prev[tag], letterSpacing: val };
-                }
-            });
-            return updated;
+        Object.keys(headerFontStyleMap || {}).forEach(tag => {
+            const assignedStyle = headerFontStyleMap[tag] || 'primary';
+            if (assignedStyle === activeFontStyleId) {
+                updateHeaderStyle(tag, 'letterSpacing', val, 'sync');
+            }
         });
     };
 
@@ -108,7 +99,11 @@ const Controller = () => {
 
             if (oldIndex !== -1 && newIndex !== -1) {
                 reorderFonts(oldIndex, newIndex);
-                setActiveFont(active.id);
+                // Only set active if not primary font
+                const activeFontObj = fonts.find(f => f.id === active.id);
+                if (activeFontObj && activeFontObj.type !== 'primary') {
+                    setActiveFont(active.id);
+                }
             }
         }
     };
@@ -119,20 +114,9 @@ const Controller = () => {
             {sidebarMode === 'main' && (
                 <>
                     {/* Static Header */}
-                    <div>
-                        <h2 className="text-2xl font-bold mb-1 text-slate-800 tracking-tight">Beautify Your Fallbacks</h2>
+                    <div className="pb-4 border-b border-slate-200/70">
+                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Beautify Your Fallbacks</h2>
                     </div>
-
-
-
-
-                    <button
-                        onClick={() => setSidebarMode('headers')}
-                        className="w-full bg-white border border-gray-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
-                    >
-                        <span className="text-sm font-serif italic">Aa</span>
-                        <span>Edit Header Styles</span>
-                    </button>
 
                     <DndContext
                         sensors={sensors}
@@ -143,28 +127,8 @@ const Controller = () => {
                             items={(fonts || []).map(f => f.id)}
                             strategy={verticalListSortingStrategy}
                         >
-                            {/* Main Font */}
+                            {/* Main Font (primary/secondary style toggle hidden) */}
                             <div>
-                                <div className="bg-slate-100 p-1 rounded-lg border border-slate-200 flex">
-                                    <button
-                                        onClick={() => setActiveFontStyleId('primary')}
-                                        className={`flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all ${activeFontStyleId === 'primary'
-                                            ? 'bg-white text-indigo-600 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700'
-                                            }`}
-                                    >
-                                        Primary
-                                    </button>
-                                    <button
-                                        onClick={() => setActiveFontStyleId('secondary')}
-                                        className={`flex-1 px-3 py-2 text-xs font-bold rounded-md transition-all ${activeFontStyleId === 'secondary'
-                                            ? 'bg-white text-indigo-600 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700'
-                                            }`}
-                                    >
-                                        Secondary
-                                    </button>
-                                </div>
                                 <div className="mt-3">
                                     {isSecondaryEmpty ? (
                                         <div className="space-y-2">
@@ -304,7 +268,7 @@ const Controller = () => {
                     {/* Export CSS Button - Bottom of Sidebar */}
                     <button
                         onClick={() => setShowCSSExporter(true)}
-                        className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2"
+                        className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="16 18 22 12 16 6"></polyline>
@@ -317,7 +281,7 @@ const Controller = () => {
 
             {/* Header Editor - Full Replacement */}
             {sidebarMode === 'headers' && (
-                <SidebarHeaderConfig onBack={() => setSidebarMode('main')} />
+                <SidebarHeaderConfig />
             )}
 
             {/* CSS Exporter Modal */}

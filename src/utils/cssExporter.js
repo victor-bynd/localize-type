@@ -83,29 +83,52 @@ function generateFallbackFontLineHeights(context) {
  * Generate language-specific overrides
  */
 function generateLanguageOverrides(context, languages) {
-    const { fallbackFontOverrides, fonts } = context;
+    const { fallbackFontOverrides, fonts, fallbackFont } = context;
 
     if (Object.keys(fallbackFontOverrides).length === 0) return '';
 
     const rules = [];
 
-    Object.entries(fallbackFontOverrides).forEach(([langId, fontId]) => {
+    const resolveLocaleTag = (langId) => {
         const language = languages.find(l => l.id === langId);
-        if (!language) return;
+        return language?.id || langId;
+    };
+
+    const systemStack = "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+    const baseFallback = fallbackFont || 'sans-serif';
+
+    Object.entries(fallbackFontOverrides).forEach(([langId, fontId]) => {
+        const localeTag = resolveLocaleTag(langId);
+
+        // Special case: "System" override ignores all uploaded fallback fonts
+        if (fontId === 'legacy') {
+            rules.push(`:lang(${localeTag}) {
+  font-family: ${systemStack};
+}`);
+            return;
+        }
 
         const font = fonts.find(f => f.id === fontId);
         if (!font) return;
 
-        const fontFamily = font.fileName?.replace(/\.[^/.]+$/, '') || 'sans-serif';
-        const lineHeightValue = font.lineHeight || context.lineHeight;
+        const fontFamily = font.fileName?.replace(/\.[^/.]+$/, '') || font.name || 'sans-serif';
 
-        rules.push(`[lang="${language.code}"] {
-  font-family: '${fontFamily}', sans-serif;
-  line-height: ${lineHeightValue};
+        rules.push(`:lang(${localeTag}) {
+  font-family: '${fontFamily}', ${baseFallback};
 }`);
     });
 
-    return rules.length > 0 ? `/* Language-Specific Overrides */\n${rules.join('\n\n')}\n` : '';
+    if (rules.length === 0) return '';
+
+    return `/* Language-Specific Fallback Overrides */
+/*
+  Best practices:
+  - Use :lang(...) selectors with BCP-47 language tags (e.g. el, el-GR, zh-Hant-TW).
+  - Ensure your document/containers have correct lang attributes, e.g. <html lang="el-GR"> or <p lang="el-GR">.
+  - Scope these rules to your app/root container if needed to avoid affecting unrelated content.
+*/
+${rules.join('\n\n')}
+`;
 }
 
 /**

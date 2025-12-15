@@ -17,10 +17,10 @@ const WeightToggleGroup = ({ options, value, onChange, className }) => {
                             onChange(opt.value);
                         }}
                         className={clsx(
-                            'px-2 py-1 text-[10px] font-bold rounded-md transition-all whitespace-nowrap',
+                            'px-2 py-1 text-[10px] font-bold rounded-md transition-all whitespace-nowrap border border-transparent',
                             opt.disabled && 'opacity-40 cursor-not-allowed',
                             !opt.disabled && !isActive && 'text-slate-500 hover:text-slate-700 hover:bg-white/60',
-                            !opt.disabled && isActive && 'bg-white text-indigo-600 shadow-sm'
+                            !opt.disabled && isActive && 'bg-white text-indigo-600 border-gray-200'
                         )}
                         title={opt.disabled ? `${opt.label} (Unavailable)` : opt.label}
                     >
