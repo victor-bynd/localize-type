@@ -80,7 +80,7 @@ export const SortableFontCard = ({
             style={style}
             className={`
                 bg-slate-50 rounded-lg border transition-all relative
-                ${isActive || isPrimary ? 'p-3' : 'p-2'}
+                p-2
                 ${isPrimary ? '' : 'cursor-pointer'}
                 ${isActive && !isPrimary
                     ? 'border-indigo-500 ring-2 ring-indigo-500/20'
@@ -142,7 +142,7 @@ export const SortableFontCard = ({
                     </svg>
                 </button>
             )}
-            <div className={`flex items-start gap-1 ${!isPrimary ? '-ml-[3px]' : ''}`}>
+            <div className={`flex items-start gap-[3px] ${!isPrimary ? '-ml-[3px]' : ''}`}>
                 <div
                     className="text-slate-400 cursor-move flex-shrink-0 hover:text-indigo-600 transition-colors p-1 -ml-1 rounded hover:bg-slate-100 touch-none"
                     title="Drag to reorder"
@@ -153,7 +153,7 @@ export const SortableFontCard = ({
                         <path d="M7 2a2 2 0 1 1 0 4a2 2 0 0 1 0-4ZM7 8a2 2 0 1 1 0 4a2 2 0 0 1 0-4ZM7 14a2 2 0 1 1 0 4a2 2 0 0 1 0-4ZM13 2a2 2 0 1 1 0 4a2 2 0 0 1 0-4ZM13 8a2 2 0 1 1 0 4a2 2 0 0 1 0-4ZM13 14a2 2 0 1 1 0 4a2 2 0 0 1 0-4Z" />
                     </svg>
                 </div>
-                <div className="flex-1 min-w-0 font-mono text-xs break-all text-slate-700 font-medium pr-6 mt-0.5 ml-1">
+                <div className="flex-1 min-w-0 font-mono text-xs break-all text-slate-700 font-medium pr-6 mt-0.5">
                     {displayName}
                 </div>
             </div>
@@ -197,7 +197,7 @@ export const SortableFontCard = ({
                             style={{ backgroundColor: colors.missing }}
                         />
                     </div>
-                    System/Web Font
+                    System
                 </div>
             )}
 

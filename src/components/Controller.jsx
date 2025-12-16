@@ -98,6 +98,22 @@ const Controller = ({ sidebarMode }) => {
             const newIndex = (fonts || []).findIndex((f) => f.id === over.id);
 
             if (oldIndex !== -1 && newIndex !== -1) {
+                // Check if the move would result in a "System Font" (manual name, no fontObject) 
+                // becoming the primary font (index 0).
+                const simulatedFonts = [...fonts];
+                const [movedFont] = simulatedFonts.splice(oldIndex, 1);
+                simulatedFonts.splice(newIndex, 0, movedFont);
+
+                const newPrimary = simulatedFonts[0];
+
+                // If the new primary has a name (is not empty placeholder) but no font object,
+                // it is a system font. Prevent this move.
+                if (newPrimary.name && !newPrimary.fontObject) {
+                    // Optional: You could show a toast/alert here if desired
+                    // alert("System fonts cannot be used as the primary font.");
+                    return;
+                }
+
                 reorderFonts(oldIndex, newIndex);
                 // Only set active if not primary font
                 const activeFontObj = fonts.find(f => f.id === active.id);
