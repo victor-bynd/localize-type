@@ -6,7 +6,7 @@ import clsx from 'clsx';
 
 const FallbackFontAdder = ({ onClose, onAdd }) => {
     const { addFallbackFont, addFallbackFonts } = useTypo();
-    const [mode, setMode] = useState('name'); // 'name' or 'upload'
+    const [mode, setMode] = useState('upload'); // 'name' or 'upload'
     const [fontName, setFontName] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -123,17 +123,6 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
             {/* Mode Toggle */}
             <div className="flex gap-2 bg-slate-50 p-1 rounded-lg">
                 <button
-                    onClick={() => setMode('name')}
-                    className={clsx(
-                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all border border-transparent",
-                        mode === 'name'
-                            ? 'bg-white text-indigo-600 border-gray-200'
-                            : 'text-slate-500 hover:text-slate-700'
-                    )}
-                >
-                    Font Name
-                </button>
-                <button
                     onClick={() => setMode('upload')}
                     className={clsx(
                         "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all border border-transparent",
@@ -144,40 +133,18 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                 >
                     Upload File
                 </button>
+                <button
+                    onClick={() => setMode('name')}
+                    className={clsx(
+                        "flex-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-all border border-transparent",
+                        mode === 'name'
+                            ? 'bg-white text-indigo-600 border-gray-200'
+                            : 'text-slate-500 hover:text-slate-700'
+                    )}
+                >
+                    Font Name
+                </button>
             </div>
-
-            {/* Font Name Input Mode */}
-            {mode === 'name' && (
-                <div className="space-y-3">
-                    <div>
-                        <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
-                            Font Name or Stack
-                        </label>
-                        <input
-                            type="text"
-                            value={fontName}
-                            onChange={(e) => setFontName(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    handleNameSubmit();
-                                }
-                            }}
-                            placeholder="e.g., Arial, sans-serif or 'Roboto', sans-serif"
-                            className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        />
-                        <p className="text-[10px] text-slate-400 mt-1">
-                            Enter a system or web font name
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleNameSubmit}
-                        disabled={!fontName.trim() || isProcessing}
-                        className="w-full px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        Add Font
-                    </button>
-                </div>
-            )}
 
             {/* Upload Mode */}
             {mode === 'upload' && (
@@ -233,6 +200,39 @@ const FallbackFontAdder = ({ onClose, onAdd }) => {
                             </span>
                         ))}
                     </div>
+                </div>
+            )}
+
+            {/* Font Name Input Mode */}
+            {mode === 'name' && (
+                <div className="space-y-3">
+                    <div>
+                        <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
+                            Font Name or Stack
+                        </label>
+                        <input
+                            type="text"
+                            value={fontName}
+                            onChange={(e) => setFontName(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    handleNameSubmit();
+                                }
+                            }}
+                            placeholder="e.g., Arial, sans-serif or 'Roboto', sans-serif"
+                            className="w-full bg-white border border-gray-200 rounded-md px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">
+                            Enter a system or web font name
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleNameSubmit}
+                        disabled={!fontName.trim() || isProcessing}
+                        className="w-full px-4 py-2 text-xs font-bold text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        Add Font
+                    </button>
                 </div>
             )}
         </div>
