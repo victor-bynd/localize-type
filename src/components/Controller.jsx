@@ -198,9 +198,7 @@ const Controller = ({ sidebarMode, setSidebarMode }) => {
                                 </div>
                             </div>
 
-                            {!isSecondaryEmpty && (
-                                <div className="border-t border-slate-200 my-1" />
-                            )}
+
 
                             {!isSecondaryEmpty && (
                                 <div>

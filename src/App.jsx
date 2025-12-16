@@ -172,7 +172,7 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
               {/* Fallback Color Toggle */}
               <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Toggle Fallback Colors</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fallback Colors</span>
                 </div>
                 <button
                   type="button"
