@@ -600,7 +600,9 @@ const FontTabs = () => {
         updateFontColor,
         setColors,
         updateFontWeight,
-        weight
+        weight,
+        fallbackFont,
+        setFallbackFont
     } = useTypo();
     const [showAdder, setShowAdder] = useState(false);
 
@@ -638,12 +640,6 @@ const FontTabs = () => {
             {/* Static System Fallback Tab */}
             <div className="bg-slate-50/50 rounded-lg p-3 border border-slate-200 border-dashed relative select-none">
                 <div className="flex items-center gap-2 mb-1">
-                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
-                        Final Fallback
-                    </div>
-                </div>
-
-                <div className="text-xs text-slate-400 mt-2 flex items-center gap-2">
                     <div className="relative w-3 h-3 flex-shrink-0 cursor-pointer group">
                         <div
                             className="absolute inset-0 rounded-full ring-1 ring-slate-200 group-hover:ring-indigo-300 transition-shadow"
@@ -657,7 +653,32 @@ const FontTabs = () => {
                             title="Change system fallback color"
                         />
                     </div>
-                    System Default
+                    <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">
+                        SYSTEM DEFAULT
+                    </div>
+                </div>
+
+                <div className="mt-3">
+                    <div className="flex bg-slate-100 rounded-md p-0.5 border border-slate-200 w-full">
+                        <button
+                            onClick={() => setFallbackFont('sans-serif')}
+                            className={`flex-1 py-1 text-[10px] rounded-sm transition-all ${fallbackFont === 'sans-serif'
+                                    ? 'bg-white text-indigo-600 shadow-sm font-bold'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            Sans-serif
+                        </button>
+                        <button
+                            onClick={() => setFallbackFont('serif')}
+                            className={`flex-1 py-1 text-[10px] rounded-sm transition-all ${fallbackFont === 'serif'
+                                    ? 'bg-white text-indigo-600 shadow-sm font-bold'
+                                    : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            Serif
+                        </button>
+                    </div>
                 </div>
             </div>
 

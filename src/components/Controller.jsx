@@ -230,7 +230,7 @@ const Controller = ({ sidebarMode }) => {
                                     <div className="space-y-4">
                                         <div>
                                             <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                                <span>Fallback Size Adjust</span>
+                                                <span>Global Fallback Size Adjust</span>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-slate-400 font-mono text-[10px]">{Math.round(baseFontSize * (fontScales.fallback / 100))}px</span>
                                                     <div className="flex items-center gap-1">
