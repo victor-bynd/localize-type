@@ -8,9 +8,12 @@ import LanguageSelectorModal from './components/LanguageSelectorModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import TextCasingSelector from './components/TextCasingSelector';
 import ViewModeSelector from './components/ViewModeSelector';
+import MissingFontsModal from './components/MissingFontsModal';
+import { useConfigImport } from './hooks/useConfigImport';
 
 const MainContent = ({ sidebarMode, setSidebarMode }) => {
   const { fontObject, fontStyles, gridColumns, setGridColumns, visibleLanguages, visibleLanguageIds, languages, showFallbackColors, setShowFallbackColors } = useTypo();
+  const { importConfig, missingFonts, resolveMissingFonts, cancelImport } = useConfigImport();
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [showListSettings, setShowListSettings] = useState(false);
   const listSettingsRef = useRef(null);
@@ -131,7 +134,7 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
                   </div>
                   <div>
                     <div className="border border-gray-100 rounded-lg p-1 bg-slate-50 overflow-x-auto">
-                      <ViewModeSelector mode="dropdown" />
+                      <ViewModeSelector />
                     </div>
                   </div>
                 </div>
@@ -201,6 +204,28 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
             <h1 className="text-4xl font-bold text-center mb-2 text-gray-800">Fallback Styles</h1>
             <p className="text-center text-gray-500 mb-8">Stress-test fallback fonts for beautiful localized typography.</p>
             <FontUploader />
+
+            <div className="mt-8 pt-8 border-t border-gray-100 flex justify-center">
+              <label className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-indigo-600 bg-slate-50 hover:bg-white border border-slate-200 hover:border-indigo-200 rounded-lg cursor-pointer transition-all shadow-sm hover:shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Import Configuration</span>
+                <input
+                  type="file"
+                  accept=".json"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files?.[0]) {
+                      importConfig(e.target.files[0]);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+              </label>
+            </div>
           </div>
         </div>
       ) : (
@@ -242,10 +267,22 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
         </div>
       )}
 
-      {showLanguageSelector && (
-        <LanguageSelectorModal onClose={() => setShowLanguageSelector(false)} />
-      )}
-    </div>
+      {
+        showLanguageSelector && (
+          <LanguageSelectorModal onClose={() => setShowLanguageSelector(false)} />
+        )
+      }
+
+      {
+        missingFonts && (
+          <MissingFontsModal
+            missingFonts={missingFonts}
+            onResolve={resolveMissingFonts}
+            onCancel={cancelImport}
+          />
+        )
+      }
+    </div >
   );
 };
 
