@@ -539,7 +539,6 @@ const LanguageCard = ({ language }) => {
                                             fontVariationSettings: primaryFont?.isVariable ? `'wght' ${primarySettings.weight || 400}` : undefined,
                                             lineHeight: effectiveLineHeight,
                                             letterSpacing: `${headerStyle.letterSpacing || 0}em`,
-                                            letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                             textTransform: textCase,
                                             position: 'relative'
                                         }}

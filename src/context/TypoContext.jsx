@@ -567,7 +567,6 @@ export const TypoProvider = ({ children }) => {
                     return {
                         ...font,
                         type: nextType,
-                        type: nextType,
                         baseFontSize: undefined,
                         scale: undefined,
                         lineHeight: undefined,
