@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { ConfigService } from './ConfigService';
-import fs from 'fs';
-import path from 'path';
-import opentype from 'opentype.js';
 
 describe('ConfigService', () => {
     describe('normalizeConfig', () => {

@@ -21,7 +21,7 @@ const LanguageCard = ({ language }) => {
         clearFallbackFontOverrideForStyle,
         getFallbackScaleOverrideForStyle,
         getEffectiveFontSettingsForStyle,
-        getFontColorForStyle,
+
         fontStyles,
         activeFontStyleId,
         showFallbackColors,
@@ -41,7 +41,14 @@ const LanguageCard = ({ language }) => {
         const capHeight = fontObject.tables?.os2?.sCapHeight || 0;
 
         const contentHeightUnits = ascender - descender;
-        const totalHeightUnits = upm * effectiveLineHeight;
+        let numericLineHeight = effectiveLineHeight;
+        if (effectiveLineHeight === 'normal' || isNaN(Number(effectiveLineHeight))) {
+            const lineGap = fontObject.tables?.os2?.sTypoLineGap ?? fontObject.hhea?.lineGap ?? 0;
+            // 'normal' is roughly (ascender + |descender| + lineGap) / upm
+            numericLineHeight = (Math.abs(ascender) + Math.abs(descender) + lineGap) / upm;
+        }
+
+        const totalHeightUnits = upm * numericLineHeight;
         const halfLeadingUnits = (totalHeightUnits - contentHeightUnits) / 2;
 
         const baselineYUnits = halfLeadingUnits + ascender;
@@ -100,7 +107,7 @@ const LanguageCard = ({ language }) => {
 
         return {
             backgroundImage: `url("${svgDataUri}")`,
-            backgroundSize: `${4 + 3}px ${effectiveLineHeight}em`, // Width matches pattern period in px
+            backgroundSize: `${4 + 3}px ${numericLineHeight}em`, // Width matches pattern period in px
             backgroundRepeat: 'repeat'
         };
     };
@@ -121,7 +128,10 @@ const LanguageCard = ({ language }) => {
     };
 
     const getCurrentFallbackFontIdForStyle = (styleId) => {
-        return getFallbackFontOverrideForStyle(styleId, language.id);
+        const id = getFallbackFontOverrideForStyle(styleId, language.id);
+        if (!id || id === 'legacy') return id;
+        const font = getFontsForStyle(styleId).find(f => f.id === id);
+        return (font && font.hidden) ? null : id;
     };
 
     const buildFallbackFontStackForStyle = useCallback((styleId) => {
@@ -144,27 +154,55 @@ const LanguageCard = ({ language }) => {
             }
 
             const overrideFont = fonts.find(f => f.id === overrideFontId);
-            if (overrideFont) {
+            if (overrideFont && !overrideFont.hidden) {
+                const overrideStack = [];
                 if (overrideFont.fontUrl) {
-                    return [{
+                    overrideStack.push({
                         fontFamily: `'FallbackFont-${styleId}-${overrideFont.id}'`,
                         fontId: overrideFont.id,
                         fontObject: overrideFont.fontObject,
                         settings: getEffectiveFontSettingsForStyle(styleId, overrideFont.id)
-                    }];
-                }
-                if (overrideFont.name) {
-                    return [{
+                    });
+                } else if (overrideFont.name) {
+                    overrideStack.push({
                         fontFamily: overrideFont.name,
                         fontId: overrideFont.id,
                         fontObject: overrideFont.fontObject,
                         settings: getEffectiveFontSettingsForStyle(styleId, overrideFont.id)
-                    }];
+                    });
+                }
+
+                if (fallbackFont) {
+                    overrideStack.push({
+                        fontFamily: fallbackFont,
+                        fontId: 'legacy',
+                        settings: { baseFontSize, scale: fontScales.fallback, lineHeight }
+                    });
+                }
+
+                if (overrideStack.length > 0) {
+                    return overrideStack;
                 }
             }
         }
 
-        const fallbackFonts = fonts.filter(f => f.type === 'fallback');
+        const globalOverrides = style?.fallbackFontOverrides || {};
+        const globalOverriddenFontIds = new Set(Object.values(globalOverrides));
+        const primaryFont = fonts.find(f => f.type === 'primary');
+
+        // Filter out fallback fonts that are used as overrides in ANY language
+        // AND ensure we don't duplicate the primary font in the fallback stack (same ID or same Name)
+        const fallbackFonts = fonts.filter(f =>
+            f.type === 'fallback' &&
+            !f.hidden &&
+            !globalOverriddenFontIds.has(f.id) &&
+            f.id !== primaryFont?.id && // Sanity check for ID duplication
+            !(
+                // If it's a system font (added by name) and matches primary name, it's a duplicate
+                (!f.fontObject && !f.fontUrl) &&
+                (f.name === primaryFont?.name || f.name === primaryFont?.fileName)
+            )
+        );
         const fontStack = [];
 
         fallbackFonts.forEach(font => {
@@ -185,7 +223,7 @@ const LanguageCard = ({ language }) => {
             }
         });
 
-        if (fallbackFont) {
+        if (fallbackFont && !fontStack.some(f => f.fontFamily === fallbackFont)) {
             fontStack.push({
                 fontFamily: fallbackFont,
                 fontId: 'legacy',
@@ -245,6 +283,7 @@ const LanguageCard = ({ language }) => {
             result[styleId] = contentToRender.split('').map((char, index) => {
                 const glyphIndex = primaryFontObject.charToGlyphIndex(char);
                 const isMissing = glyphIndex === 0;
+                const fonts = getFontsForStyle(styleId);
 
                 if (isMissing && fallbackFontStack.length > 0) {
                     let usedFallback = null;
@@ -273,7 +312,6 @@ const LanguageCard = ({ language }) => {
                     const fallbackSettings = usedFallback.settings || { baseFontSize, scale: fontScales.fallback, lineHeight, weight: 400 };
                     const fallbackFontSize = fallbackSettings.baseFontSize * (fallbackSettings.scale / 100);
 
-                    const fonts = getFontsForStyle(styleId);
                     const fontIndex = fonts.findIndex(f => f.id === usedFallback.fontId);
                     const fontObj = fonts[fontIndex];
 
@@ -281,13 +319,14 @@ const LanguageCard = ({ language }) => {
                     const hasLineHeightOverride = fontObj && (fontObj.lineHeight !== undefined && fontObj.lineHeight !== '' && fontObj.lineHeight !== null);
                     const hasLetterSpacingOverride = fontObj && (fontObj.letterSpacing !== undefined && fontObj.letterSpacing !== '' && fontObj.letterSpacing !== null);
 
+
                     // System fonts (no fontObject) use the 'missing/system' color because we can't verify 
                     // if they are truly used or if the browser fell back to the OS default.
                     const useAssignedColor = fontIndex >= 0 && usedFallback.fontObject;
-                    const baseColor = useAssignedColor ? getFontColorForStyle(styleId, fontIndex) : colors.missing;
+                    const baseColor = useAssignedColor ? (fontObj?.color || colors.primary) : colors.missing;
                     const fontColor = showFallbackColors
                         ? baseColor
-                        : getFontColorForStyle(styleId, 0);
+                        : (fonts[0]?.color || colors.primary);
 
                     const isVariable = fontObj?.isVariable;
                     const weight = fallbackSettings.weight || 400;
@@ -298,6 +337,8 @@ const LanguageCard = ({ language }) => {
                         borderRadius: '2px'
                     } : {};
 
+
+
                     return (
                         <span
                             key={index}
@@ -305,8 +346,14 @@ const LanguageCard = ({ language }) => {
                                 fontFamily: fallbackFontStackString,
                                 color: fontColor,
                                 fontSize: `${(fallbackFontSize / primaryFontSize) * scaleMultiplier}em`,
-                                lineHeight: hasLineHeightOverride ? fallbackSettings.lineHeight : undefined,
+                                lineHeight: (
+                                    (fallbackSettings.lineGapOverride !== undefined && fallbackSettings.lineGapOverride !== '') ||
+                                    (fallbackSettings.ascentOverride !== undefined && fallbackSettings.ascentOverride !== '') ||
+                                    (fallbackSettings.descentOverride !== undefined && fallbackSettings.descentOverride !== '')
+                                ) ? 'normal'
+                                    : (hasLineHeightOverride ? fallbackSettings.lineHeight : undefined),
                                 letterSpacing: hasLetterSpacingOverride ? `${fallbackSettings.letterSpacing}em` : undefined,
+
                                 fontWeight: weight,
                                 fontVariationSettings: isVariable ? `'wght' ${weight}` : undefined,
                                 ...inlineBoxStyle
@@ -323,12 +370,12 @@ const LanguageCard = ({ language }) => {
                     borderRadius: '2px'
                 } : {};
 
-                return <span key={index} style={{ color: getFontColorForStyle(styleId, 0), ...inlineBoxStyle }}>{char}</span>;
+                return <span key={index} style={{ color: fonts[0]?.color || colors.primary, ...inlineBoxStyle }}>{char}</span>;
             });
         });
 
         return result;
-    }, [buildFallbackFontStackForStyle, contentToRender, colors.missing, fontStyles, getEffectiveFontSettingsForStyle, getFallbackScaleOverrideForStyle, getFontColorForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id, showFallbackColors, showBrowserGuides]);
+    }, [buildFallbackFontStackForStyle, contentToRender, colors.missing, colors.primary, fontStyles, getEffectiveFontSettingsForStyle, getFallbackScaleOverrideForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id, showFallbackColors, showBrowserGuides]);
 
     // Stats based on current content (moved check to end of render)
 
@@ -418,7 +465,7 @@ const LanguageCard = ({ language }) => {
                 <div className="flex flex-wrap items-center gap-4">
 
                     <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">FONT OVERRIDE</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">LANG/FONT</span>
                         <div className="relative">
                             <select
                                 value={fallbackOverrideFontId}
@@ -531,6 +578,18 @@ const LanguageCard = ({ language }) => {
                                 : undefined;
 
                             const effectiveLineHeight = headerStyle.lineHeight ?? forcedLineHeight ?? lineHeight;
+
+                            // Calculate numeric LH for guide
+                            let numericLineHeight = effectiveLineHeight;
+                            if (effectiveLineHeight === 'normal' || isNaN(Number(effectiveLineHeight))) {
+                                if (primaryFont?.fontObject) {
+                                    const { ascender, descender, unitsPerEm } = primaryFont.fontObject;
+                                    const lineGap = primaryFont.fontObject.tables?.os2?.sTypoLineGap ?? primaryFont.fontObject.hhea?.lineGap ?? 0;
+                                    numericLineHeight = (Math.abs(ascender) + Math.abs(descender) + lineGap) / unitsPerEm;
+                                } else {
+                                    numericLineHeight = 1.2; // Default fallback if no metrics
+                                }
+                            }
                             // Note: 'lineHeight' var comes from style default above
 
                             // Note: 'lineHeight' var comes from style default above
@@ -545,11 +604,11 @@ const LanguageCard = ({ language }) => {
                                 backgroundImage: `repeating-linear-gradient(
                                     to bottom,
                                     rgba(59, 130, 246, 0.05) 0em,
-                                    rgba(59, 130, 246, 0.05) ${effectiveLineHeight - 0.05}em,
-                                    rgba(59, 130, 246, 0.2) ${effectiveLineHeight - 0.05}em,
-                                    rgba(59, 130, 246, 0.2) ${effectiveLineHeight}em
+                                    rgba(59, 130, 246, 0.05) ${numericLineHeight - 0.05}em,
+                                    rgba(59, 130, 246, 0.2) ${numericLineHeight - 0.05}em,
+                                    rgba(59, 130, 246, 0.2) ${numericLineHeight}em
                                 )`,
-                                backgroundSize: `100% ${effectiveLineHeight}em`
+                                backgroundSize: `100% ${numericLineHeight}em`
                             } : {};
 
                             return (
@@ -563,7 +622,12 @@ const LanguageCard = ({ language }) => {
                                             fontSize: `${finalSizePx}px`,
                                             fontWeight: primarySettings.weight || 400,
                                             fontVariationSettings: primaryFont?.isVariable ? `'wght' ${primarySettings.weight || 400}` : undefined,
-                                            lineHeight: effectiveLineHeight,
+                                            lineHeight: (
+                                                (primarySettings.lineGapOverride !== undefined && primarySettings.lineGapOverride !== '') ||
+                                                (primarySettings.ascentOverride !== undefined && primarySettings.ascentOverride !== '') ||
+                                                (primarySettings.descentOverride !== undefined && primarySettings.descentOverride !== '')
+                                            ) ? 'normal'
+                                                : effectiveLineHeight,
                                             letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                             textTransform: textCase,
                                             position: 'relative',
@@ -625,17 +689,29 @@ const LanguageCard = ({ language }) => {
                             finalSizePx
                         );
 
+                        // Calculate numeric LH for guide
+                        let numericLineHeight = effectiveLineHeight;
+                        if (effectiveLineHeight === 'normal' || isNaN(Number(effectiveLineHeight))) {
+                            if (metricsPrimaryFontObject) {
+                                const { ascender, descender, unitsPerEm } = metricsPrimaryFontObject;
+                                const lineGap = metricsPrimaryFontObject.tables?.os2?.sTypoLineGap ?? metricsPrimaryFontObject.hhea?.lineGap ?? 0;
+                                numericLineHeight = (Math.abs(ascender) + Math.abs(descender) + lineGap) / unitsPerEm;
+                            } else {
+                                numericLineHeight = 1.2; // Default fallback if no metrics
+                            }
+                        }
+
                         // Browser Guide: Line Box Visualization
                         // Vertical repeating stripes matching effectiveLineHeight
                         const browserGuideStyle = showBrowserGuides ? {
                             backgroundImage: `repeating-linear-gradient(
                                 to bottom,
                                 rgba(59, 130, 246, 0.05) 0em,
-                                rgba(59, 130, 246, 0.05) ${effectiveLineHeight - 0.05}em,
-                                rgba(59, 130, 246, 0.2) ${effectiveLineHeight - 0.05}em,
-                                rgba(59, 130, 246, 0.2) ${effectiveLineHeight}em
+                                rgba(59, 130, 246, 0.05) ${numericLineHeight - 0.05}em,
+                                rgba(59, 130, 246, 0.2) ${numericLineHeight - 0.05}em,
+                                rgba(59, 130, 246, 0.2) ${numericLineHeight}em
                             )`,
-                            backgroundSize: `100% ${effectiveLineHeight}em`
+                            backgroundSize: `100% ${numericLineHeight}em`
                         } : {};
 
                         return (
@@ -647,7 +723,12 @@ const LanguageCard = ({ language }) => {
                                     fontSize: `${finalSizePx}px`,
                                     fontWeight: weight,
                                     fontVariationSettings: isVariable ? `'wght' ${weight}` : undefined,
-                                    lineHeight: effectiveLineHeight,
+                                    lineHeight: (
+                                        (primarySettings.lineGapOverride !== undefined && primarySettings.lineGapOverride !== '') ||
+                                        (primarySettings.ascentOverride !== undefined && primarySettings.ascentOverride !== '') ||
+                                        (primarySettings.descentOverride !== undefined && primarySettings.descentOverride !== '')
+                                    ) ? 'normal'
+                                        : effectiveLineHeight,
                                     letterSpacing: `${headerStyle.letterSpacing || 0}em`,
                                     textTransform: textCase,
                                     position: 'relative',

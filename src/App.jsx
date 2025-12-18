@@ -89,23 +89,61 @@ const MainContent = ({ sidebarMode, setSidebarMode }) => {
         if (!style) return '';
 
         const primary = style.fonts?.find(f => f.type === 'primary');
+        const primarySizeAdjust = (primary && primary.sizeAdjust !== undefined && primary.sizeAdjust !== '')
+          ? `size-adjust: ${primary.sizeAdjust}%;`
+          : '';
+
+        const primaryLineGapOverride = (primary && primary.lineGapOverride !== undefined && primary.lineGapOverride !== '')
+          ? `line-gap-override: ${primary.lineGapOverride * 100}%;`
+          : '';
+
+        const primaryAscentOverride = (primary && primary.ascentOverride !== undefined && primary.ascentOverride !== '')
+          ? `ascent-override: ${primary.ascentOverride * 100}%;`
+          : '';
+
+        const primaryDescentOverride = (primary && primary.descentOverride !== undefined && primary.descentOverride !== '')
+          ? `descent-override: ${primary.descentOverride * 100}%;`
+          : '';
+
         const primaryRule = primary?.fontUrl
           ? `
           @font-face {
             font-family: 'UploadedFont-${styleId}';
             src: url('${primary.fontUrl}');
+            ${primarySizeAdjust}
+            ${primaryLineGapOverride}
+            ${primaryAscentOverride}
+            ${primaryDescentOverride}
           }
         `
           : '';
 
         const fallbackRules = (style.fonts || [])
           .filter(f => f.type === 'fallback' && f.fontUrl)
-          .map(font => `
+          .map(font => {
+            const sizeAdjust = (font.sizeAdjust !== undefined && font.sizeAdjust !== '')
+              ? `size-adjust: ${font.sizeAdjust}%;`
+              : '';
+            const lineGapOverride = (font.lineGapOverride !== undefined && font.lineGapOverride !== '')
+              ? `line-gap-override: ${font.lineGapOverride * 100}%;`
+              : '';
+            const ascentOverride = (font.ascentOverride !== undefined && font.ascentOverride !== '')
+              ? `ascent-override: ${font.ascentOverride * 100}%;`
+              : '';
+            const descentOverride = (font.descentOverride !== undefined && font.descentOverride !== '')
+              ? `descent-override: ${font.descentOverride * 100}%;`
+              : '';
+            return `
             @font-face {
               font-family: 'FallbackFont-${styleId}-${font.id}';
               src: url('${font.fontUrl}');
+              ${sizeAdjust}
+              ${lineGapOverride}
+              ${ascentOverride}
+              ${descentOverride}
             }
-          `)
+          `;
+          })
           .join('');
 
         return `${primaryRule}${fallbackRules}`;

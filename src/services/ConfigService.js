@@ -93,5 +93,43 @@ export const ConfigService = {
         }
 
         return null;
+    },
+
+    /**
+     * Validates and cleans the configuration data.
+     * Specifically checks for orphaned font overrides.
+     * @param {Object} data - The normalized configuration data.
+     * @returns {Object} The validated configuration data.
+     */
+    validateConfig: (data) => {
+        if (!data || !data.fontStyles) return data;
+
+        const cleanData = { ...data };
+        const styles = ['primary', 'secondary'];
+
+        styles.forEach(styleId => {
+            const style = cleanData.fontStyles[styleId];
+            if (!style || !style.fallbackFontOverrides) return;
+
+            const existingFontIds = new Set((style.fonts || []).map(f => f.id));
+            const validOverrides = {};
+            let hasChanges = false;
+
+            Object.entries(style.fallbackFontOverrides).forEach(([langId, fontId]) => {
+                // Keep 'legacy' and 'cascade' as valid special values if used, although currently primarily IDs or 'legacy'
+                if (fontId === 'legacy' || fontId === 'cascade' || existingFontIds.has(fontId)) {
+                    validOverrides[langId] = fontId;
+                } else {
+                    hasChanges = true;
+                    console.warn(`Removed orphaned override for language ${langId}: font ${fontId} not found.`);
+                }
+            });
+
+            if (hasChanges) {
+                style.fallbackFontOverrides = validOverrides;
+            }
+        });
+
+        return cleanData;
     }
 };
