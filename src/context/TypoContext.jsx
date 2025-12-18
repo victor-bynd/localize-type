@@ -670,37 +670,7 @@ export const TypoProvider = ({ children }) => {
         });
     };
 
-    // Remove a fallback font
     const removeFallbackFont = (fontId) => {
-        setFonts(prev => {
-            const filtered = prev.filter(f => f.id !== fontId);
-            const reassigned = filtered.map((f, i) => ({
-                ...f,
-                type: i === 0 ? 'primary' : 'fallback'
-            }));
-
-            // If we removed the active font, or if activeFont is no longer in the list:
-            // (Note: we can't check 'activeFont' state directly inside the updater if we count on synchronous logic 
-            // but we can check if the ID is gone).
-            // Actually, we need to update activeFont separately or here?
-            // Since setActiveFont is separate state, we should do it outside or in a useEffect, 
-            // but here we can't easily effect the other state atom.
-            // Wait, updateStyleState handles 'fonts'. 'activeFont' is a sibling property in the style object?
-            // No, the style object contains { fonts, activeFont ... }.
-
-            return reassigned;
-        });
-
-        // We also need to ensure activeFont points to something valid if we removed the current one.
-        // But since we are using 'setFonts' which wraps 'updateStyleState' for 'fonts', we should probably 
-        // update 'activeFont' in the same pass if possible, OR rely on a check.
-        // The original code did: if (activeFont === fontId) setActiveFont('primary');
-        // Now 'primary' might be the ID of the deleted font if it was the default one.
-        // We should set activeFont to the ID of the new head, or null if empty.
-
-        // This is tricky because `setFonts` is a helper that only updates `fonts`.
-        // I should rewrite this to use `updateStyleState` directly to update both fields atomically.
-
         const styleId = activeFontStyleId;
         updateStyleState(styleId, prev => {
             const filtered = (prev.fonts || []).filter(f => f.id !== fontId);
@@ -1011,7 +981,7 @@ export const TypoProvider = ({ children }) => {
         return fallbackFontOverrides[langId] || null;
     };
 
-    // fontColors removed as it is now part of font object
+
 
     const updateFontColor = (fontId, color) => {
         setFonts(prev => prev.map(f =>
@@ -1318,7 +1288,6 @@ export const TypoProvider = ({ children }) => {
             // NEW: Multi-font system
             fonts,
             setFonts,
-            // fontColors removed
             updateFontColor,
             getFontColor, // Expose helper
             activeFont,
