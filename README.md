@@ -1,63 +1,101 @@
 # Localize Type
 
-A web app for stress-testing font stacks across languages. This tool can help provide granular typography control when localized text gets rendered into their respective fonts.
+**A powerful web-based tool for stress-testing and fine-tuning font stacks across global languages.**
 
-How to use: Upload a primary 'brand' font along with your fallback fonts then preview real text and see exactly how your font stack supports global locales.
+Localize Type helps designers and developers gain granular control over typography when "brand fonts" need to share the stage with system or fallback fonts for localized content.
 
-This tool is especially helpful when your primary 'brand' font is highly stylized causing fallback fonts to not match (in scale and alignment) with the primary font.
+## Why Localize Type?
 
-## Features
+Typography is often designed with a single primary language in mind. However, when your application scales to support global languages (Greek, Cyrillic, Thai, Arabic, CJK, etc.), your carefully chosen "Brand Font" may drop characters it doesn't support.
 
-- **Upload a font stack**
-  - Drop multiple font files at once: first file becomes the Primary font, remaining files become Fallback fonts
-  - Add additional fallback fonts later
-- **Cascade fallback preview (per character)**
-  - Missing glyphs in the primary font are rendered using the first fallback that supports that glyph
-  - Each fallback font can be visually distinguished via per-font color
-- **Multi-language grid (15 locales/scripts)**
-  - Latin: English, Lithuanian, Vietnamese
-  - Greek, Cyrillic (Russian)
-  - RTL: Arabic, Persian
-  - Indic scripts: Bengali, Hindi (Devanagari), Kannada, Telugu
-  - Southeast Asia: Thai
-  - CJK: Chinese (Simplified), Japanese, Korean
-- **Show/hide languages**
-  - Use the **Languages** button (top-right) to toggle which language cards are displayed
-  - Includes Select all / Select none / Reset
-  - Your selection persists in the browser (via `localStorage`)
-- **Typography controls**
-  - Global font weight (propagates to all fonts in the stack)
-  - Global fallback size adjust
-  - Global line height and letter spacing
-  - Text casing (normal/lowercase/uppercase/capitalize)
-  - Header presets and a dedicated Header Style editor (H1-H6 scale/line-height/letter-spacing)
-- **Overrides (global, per-font, per-language)**
-  - Per-fallback-font overrides: weight, size adjust, and line height
-  - Weight overrides: fallback fonts inherit global weight but can override individually
-  - Per-language fallback selection (choose a specific fallback font or use the cascade)
-  - Per-language custom text editing
-  - Override manager to review and reset active overrides
-- **Export CSS**
-  - Generate CSS for your current typography settings (including `@font-face` for uploaded fonts)
-  - Copy to clipboard or download a `.css` file
-- **Font color palette**
-  - Assign a color to each font in the stack for better visualization
-- **Accurate UI controls**
-  - Precise sliders and input fields for fine-tuning typography settings
+This forces the browser to rely on **Fallback Fonts**, which often leads to:
+- **Visual Inconsistency:** Fallback fonts may look heavier, lighter, larger, or smaller than your primary font.
+- **Layout Shifts:** A paragraph in Thai might take up 20% more vertical space than English due to different line-height metrics.
+- **"Tofu" & Missing Glyphs:** Without a proper strategy, users see empty boxes (□) instead of text.
+- **Baseline Alignment Issues:** Mixing fonts often breaks the visual rhythm of your text.
 
-## Getting Started
+**Localize Type** solves this by letting you:
+1.  **Visualize** exactly where your primary font fails and fallback fonts take over.
+2.  **Tune** the fallback fonts (scale, weight, line-height) to match your primary font perfectly.
+3.  **Export** production-ready CSS to ensure your live site looks exactly like your design.
 
-### Prerequisites
+---
 
-- Node.js 18+
-- npm
+## Key Features
+
+### 1. Smart Font Stacking
+- **Drag & Drop:** Upload your primary font (`.ttf`, `.otf`, `.woff`, `.woff2`) and any number of custom fallback fonts.
+- **Priority Management:** Drag to reorder fonts in the stack to control the fallback cascade priority.
+- **System Fonts:** Automatically handles standard system fallbacks if custom fonts aren't provided.
+
+### 2. Multi-Language Simulation
+- **Instant Preview:** View your type stack across **15+ locales** simultaneously, including:
+  - **Latin:** English, Lithuanian, Vietnamese
+  - **Scripts:** Greek, Cyrillic (Russian)
+  - **RTL:** Arabic, Persian
+  - **Indic:** Hindi, Bengali, Kannada, Telugu, Tamil, etc.
+  - **East Asian:** Chinese (Simp/Trad), Japanese, Korean, Thai
+- **Per-Character Inspection:** See exactly which font is rendering every single character.
+
+### 3. Granular Typography Controls
+Localize Type offers three levels of control to handle every edge case:
+
+*   **Global Level:** Set the baseline weight, size (REM/PX), line-height, and letter-spacing for the entire project.
+*   **Font Level:** Adjust a specific fallback font to match your brand font.
+    *   *Example:* "Roboto looks 10% smaller than my custom font, so I'll scale it up by 110%."
+*   **Language Level:** Override settings for a specific locale.
+    *   *Example:* "Thai needs 150% line-height to avoid clipping, but English is fine at 120%."
+
+### 4. Advanced Visualization Tools
+- **Color-Coded Fallbacks:** Toggle color highlighting to instantly see which font is rendering which part of the text.
+- **Visual Alignment Guides:** Overlay metric lines (Baseline, x-Height, Cap-Height, Ascender, Descender) to verify vertical alignment between different fonts.
+- **Browser Render Inspection:** Verify line-box behavior to prevent unexpected layout shifts.
+
+### 5. Production Workflow
+- **Export to CSS:** Generate clean, production-ready CSS code including `@font-face` definitions and your tuned `adjust-font-size` settings.
+- **Save Configuration:** Export your entire workspace state to a JSON file (versioned and backward-compatible) to share with teammates or resume work later.
+
+---
+
+## How to Use
+
+### Step 1: Upload Your Fonts
+Drag your primary "Brand Font" into the sidebar. Then, add any custom fallback fonts you want to test (e.g., Noto Sans for coverage).
+
+### Step 2: Select Languages
+Use the **Languages** menu to toggle the visibility of relevant locales for your project.
+
+### Step 3: Tune Global Styles
+Set your baseline values in the sidebar:
+- **Base Size:** Default is 16px (1rem), but you can adjust this to see how it scales.
+- **Weight & Line Height:** Set these to your brand guidelines.
+
+### Step 4: Normalize Fallback Fonts
+If a fallback font looks visually smaller or lighter than your primary font:
+1.  Click on the fallback font in the sidebar.
+2.  Adjust **Scale %** until the x-height matches your primary font.
+3.  Override **Weight** if the fallback looks too bold or thin.
+
+### Step 5: Handle Language Specifics
+If a specific language (like Arabic or Thai) still looks wrong:
+1.  Go to that language's card in the main view.
+2.  Use the **Override** dropdown to force a specific font for just this language.
+3.  Click **Edit** to paste real production content to verify fixes.
+
+### Step 6: Export
+Click **Export CSS** in the sidebar to get the code.
+
+---
 
 ## Development
 
-This project uses Vite + React + TailwindCSS.
+This project is built with:
+- **React 19**
+- **Vite 7**
+- **TailwindCSS 4**
+- **OpenType.js** (for deep font parsing and metrics)
 
 ### Installation
-
 ```bash
 # Install dependencies
 npm install
@@ -66,60 +104,11 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:5173` to view the app.
-
-## How to Use
-
-1. **Upload fonts**
-   - Drag and drop one or more font files (`.ttf`, `.otf`, `.woff`, `.woff2`).
-   - The first file becomes the Primary font. The rest become Fallback fonts.
-2. **Tune global typography** (left sidebar)
-   - Adjust global font weight (applies to all fonts)
-   - Adjust global fallback size
-   - Adjust line height and letter spacing
-   - Switch between H1–H6 (or “All”) to preview different header presets
-3. **Show/hide languages**
-   - Click **Languages** in the top-right to choose which locales are visible
-   - The app remembers your selection across refreshes
-4. **Manage the font stack**
-   - Reorder fonts via drag & drop to change cascade priority
-   - Configure per-fallback overrides (weight, size, and line height)
-   - Fallback fonts inherit the global weight but can override individually
-   - Set per-font colors to quickly see which font is used for each glyph
-5. **Per-language overrides** (on each language card)
-   - Pick a specific fallback font for a locale (or keep “Default” to use the cascade)
-   - Edit the sample text and save a custom override
-6. **Export CSS**
-   - Click **Export CSS** to copy/download CSS representing your current settings
-
-### Production Build
-
+### Building for Production
 ```bash
-# Build for production
 npm run build
-
-# Preview production build locally
 npm run preview
 ```
 
-## Deployment
-
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to DigitalOcean.
-
-1. Push your code to GitHub
-2. Update `.do/app.yaml` with your repository details
-3. Create a new app in DigitalOcean App Platform
-4. Connect your repository and deploy!
-
-## Tech Stack
-
-- **Frontend:** React 19
-- **Build Tool:** Vite 7
-- **Styling:** TailwindCSS 4
-- **Font Parsing:** OpenType.js
-- **Deployment:** DigitalOcean App Platform
-
 ## License
-
 MIT
-
