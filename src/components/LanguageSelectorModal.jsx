@@ -52,9 +52,9 @@ const LanguageSelectorModal = ({ onClose }) => {
             if (lang.script === 'Latn') push('Latin', lang);
             else if (lang.script === 'Grek') push('Greek', lang);
             else if (lang.script === 'Cyrl') push('Cyrillic', lang);
-            else if (['Deva', 'Beng', 'Knda', 'Telu'].includes(lang.script)) push('Indic', lang);
+            else if (['Deva', 'Beng', 'Knda', 'Telu', 'Gujr', 'Guru', 'Mlym', 'Taml'].includes(lang.script)) push('Indic', lang);
             else if (lang.script === 'Thai') push('Southeast Asia', lang);
-            else if (['Hans', 'Jpan', 'Kore'].includes(lang.script)) push('CJK', lang);
+            else if (['Hans', 'Hant', 'Jpan', 'Kore'].includes(lang.script)) push('CJK', lang);
             else push('Other', lang);
         });
 
