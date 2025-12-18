@@ -19,6 +19,7 @@ import {
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { getVisualFontIdOrder } from '../utils/fontSortUtils';
 
 const Controller = ({ sidebarMode }) => {
     const {
@@ -50,6 +51,7 @@ const Controller = ({ sidebarMode }) => {
         getEffectiveFontSettings,
         updateFallbackFontOverride,
         resetFallbackFontOverrides,
+        fallbackFontOverrides,
         copyFontsFromPrimaryToSecondary
     } = useTypo();
 
@@ -141,7 +143,7 @@ const Controller = ({ sidebarMode }) => {
                         onDragEnd={handleDragEnd}
                     >
                         <SortableContext
-                            items={(fonts || []).map(f => f.id)}
+                            items={getVisualFontIdOrder(fonts, fallbackFontOverrides)}
                             strategy={verticalListSortingStrategy}
                         >
                             {/* Main Font (primary/secondary style toggle hidden) */}
@@ -224,22 +226,33 @@ const Controller = ({ sidebarMode }) => {
 
                             {!isSecondaryEmpty && (
                                 <div>
-                                    <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
-                                        Fallback Fonts
-                                    </label>
                                     <div className="space-y-4">
                                         <div>
                                             <div className="flex justify-between text-xs text-slate-600 mb-1">
-                                                <span>Global Fallback Size Adjust</span>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="text-slate-400 font-mono text-[10px]">{Math.round(baseFontSize * (fontScales.fallback / 100))}px</span>
+                                                    <span>Global Fallback Size Adjust</span>
+                                                    {fontScales.fallback !== 100 && (
+                                                        <button
+                                                            onClick={() => {
+                                                                setFontScales(prev => ({ ...prev, fallback: 100 }));
+                                                                setIsFallbackLinked(false);
+                                                            }}
+                                                            className="text-[10px] text-slate-400 hover:text-rose-500"
+                                                            title="Reset to 100%"
+                                                            type="button"
+                                                        >
+                                                            ↺
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2">
                                                     <div className="flex items-center gap-1">
                                                         <input
                                                             type="number"
                                                             min="25"
                                                             max="300"
                                                             step="5"
-                                                            value={fontScales.fallback}
+                                                            value={fontScales.fallback === 100 ? '' : fontScales.fallback}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
                                                                 if (val === '') {
@@ -285,11 +298,19 @@ const Controller = ({ sidebarMode }) => {
                                                     }));
                                                     setIsFallbackLinked(false);
                                                 }}
-                                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                                className={`w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer block ${fontScales.fallback !== 100
+                                                    ? 'accent-indigo-600'
+                                                    : 'accent-slate-400'
+                                                    }`}
                                             />
                                         </div>
 
-                                        <FontTabs />
+                                        <div>
+                                            <label className="block text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">
+                                                Fallback Fonts ({(fonts || []).filter(f => f.type !== 'primary' && !Object.values(fallbackFontOverrides || {}).includes(f.id)).length})
+                                            </label>
+                                            <FontTabs />
+                                        </div>
                                     </div>
                                 </div>
                             )}

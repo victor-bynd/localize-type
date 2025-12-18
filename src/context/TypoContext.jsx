@@ -22,8 +22,9 @@ const createEmptyStyleState = () => ({
             // Weight metadata
             axes: null,
             isVariable: false,
-            staticWeight: null
+            staticWeight: null,
             // selectedWeight removed, will use weightOverride if needed
+            color: DEFAULT_PALETTE[0]
         }
     ],
     activeFont: 'primary',
@@ -31,13 +32,14 @@ const createEmptyStyleState = () => ({
     weight: 400, // Global weight for this style
     fontScales: { active: 100, fallback: 100 },
     isFallbackLinked: true,
-    lineHeight: 1.2,
+    lineHeight: 'normal',
+    previousLineHeight: 1.2, // Store previous line height for toggling Auto
     letterSpacing: 0,
     fallbackFont: 'sans-serif',
     lineHeightOverrides: {},
     fallbackScaleOverrides: {},
     fallbackFontOverrides: {},
-    fontColors: DEFAULT_PALETTE,
+    // fontColors removed, stored in fonts
     baseRem: 16
 });
 
@@ -226,6 +228,44 @@ export const TypoProvider = ({ children }) => {
         }));
     };
 
+    const toggleGlobalLineHeightAuto = useCallback(() => {
+        updateStyleState(activeFontStyleId, prev => {
+            const isAuto = prev.lineHeight === 'normal';
+            console.log('[TypoContext] toggleGlobalLineHeightAuto called. Current isAuto:', isAuto, 'prev:', prev.lineHeight, 'previous:', prev.previousLineHeight);
+
+            if (isAuto) {
+                // Restore
+                // SAFEGUARD: Ensure we don't restore 'normal' if previousLineHeight was somehow saved as 'normal'
+                let restored = prev.previousLineHeight;
+                if (restored === 'normal' || restored === undefined || restored === null) {
+                    restored = 1.2;
+                }
+                console.log('[TypoContext] Restoring line height to:', restored);
+
+                return {
+                    ...prev,
+                    lineHeight: restored
+                };
+            } else {
+                // Save and set Auto
+                console.log('[TypoContext] Setting line height to Auto. Saving previous:', prev.lineHeight);
+                return {
+                    ...prev,
+                    previousLineHeight: prev.lineHeight,
+                    lineHeight: 'normal'
+                };
+            }
+        });
+    }, [activeFontStyleId]);
+
+    const previousLineHeight = activeStyle.previousLineHeight;
+    const setPreviousLineHeight = (valueOrUpdater) => {
+        updateStyleState(activeFontStyleId, prev => ({
+            ...prev,
+            previousLineHeight: typeof valueOrUpdater === 'function' ? valueOrUpdater(prev.previousLineHeight) : valueOrUpdater
+        }));
+    };
+
     const letterSpacing = activeStyle.letterSpacing;
     const setLetterSpacing = (valueOrUpdater) => {
         updateStyleState(activeFontStyleId, prev => ({
@@ -409,6 +449,7 @@ export const TypoProvider = ({ children }) => {
 
         updateStyleState(styleId, prev => ({
             ...prev,
+            lineHeight: 'normal', // Reset to Auto when loading a new primary font
             weight: (prev.fonts || []).some(f => f.type === 'primary')
                 ? resolveWeightForFont(
                     {
@@ -431,7 +472,7 @@ export const TypoProvider = ({ children }) => {
                             axes: metadata.axes,
                             isVariable: metadata.isVariable,
                             staticWeight: metadata.staticWeight ?? null
-                            // No selectedWeight, use global weight
+                            // Keep existing color
                         }
                         : f
                 )
@@ -444,8 +485,8 @@ export const TypoProvider = ({ children }) => {
                         name,
                         axes: metadata.axes,
                         isVariable: metadata.isVariable,
-                        staticWeight: metadata.staticWeight ?? null
-                        // No selectedWeight, defaults to global
+                        staticWeight: metadata.staticWeight ?? null,
+                        color: DEFAULT_PALETTE[(prev.fonts || []).length % DEFAULT_PALETTE.length]
                     },
                     ...(prev.fonts || [])
                 ],
@@ -465,7 +506,10 @@ export const TypoProvider = ({ children }) => {
                 baseFontSize: style.baseFontSize,
                 scale: style.fontScales.active,
                 lineHeight: style.lineHeight,
-                weight: resolveWeightForFont(font, style.weight) // Use global weight (resolved for this font)
+                weight: resolveWeightForFont(font, style.weight), // Use global weight (resolved for this font)
+                lineGapOverride: font.lineGapOverride, // Added this
+                ascentOverride: font.ascentOverride,
+                descentOverride: font.descentOverride
             };
         }
 
@@ -483,7 +527,11 @@ export const TypoProvider = ({ children }) => {
             scale: font.scale ?? style.fontScales.fallback,
             lineHeight: effectiveLineHeight,
             letterSpacing: effectiveLetterSpacing,
-            weight: resolveWeightForFont(font, font.weightOverride ?? style.weight) // Use override OR global (resolved for this font)
+            weight: resolveWeightForFont(font, font.weightOverride ?? style.weight), // Use override OR global (resolved for this font)
+            fontSizeAdjust: font.fontSizeAdjust, // CSS font-size-adjust value (undefined = none)
+            lineGapOverride: font.lineGapOverride, // CSS line-gap-override value (undefined = none)
+            ascentOverride: font.ascentOverride,
+            descentOverride: font.descentOverride
         };
     };
 
@@ -494,14 +542,132 @@ export const TypoProvider = ({ children }) => {
         return (fontStyles[styleId]?.fonts || []).slice();
     };
 
+    // Helper to check if a font is a system font (added by name, no uploaded file)
+    const isSystemFont = (font) => !font.fontObject;
+
+    // Helper to normalize font names for comparison (strips extension, common suffixes, lowercase)
+    const normalizeFontName = (name) => {
+        if (!name) return '';
+        let n = name.trim().toLowerCase();
+
+        // Remove extension
+        const lastDot = n.lastIndexOf('.');
+        if (lastDot > 0) {
+            n = n.substring(0, lastDot);
+        }
+
+        // Remove common suffixes to isolate family name
+        // Order matters: specific longer suffixes first
+        const suffixes = [
+            '-regular', ' regular', '_regular',
+            '-bold', ' bold', '_bold',
+            '-italic', ' italic', '_italic',
+            '-medium', ' medium', '_medium',
+            '-light', ' light', '_light',
+            '-thin', ' thin', '_thin',
+            '-black', ' black', '_black',
+            '-semibold', ' semibold', '_semibold',
+            '-extrabold', ' extrabold', '_extrabold',
+            '-extralight', ' extralight', '_extralight'
+        ];
+
+        for (const suffix of suffixes) {
+            if (n.endsWith(suffix)) {
+                n = n.substring(0, n.length - suffix.length);
+            }
+        }
+
+        return n.replace(/[-_]/g, ' ').trim();
+    };
+
     // Add a new fallback font
+    // System fonts are appended at the end, uploaded fonts are inserted before system fonts
     const addFallbackFont = (fontData) => {
-        setFonts(prev => [...prev, fontData]);
+        setFonts(prev => {
+            // Check for duplication against primary font
+            const primary = prev.find(f => f.type === 'primary');
+            if (primary) {
+                const pName = normalizeFontName(primary.fileName || primary.name);
+                const nName = normalizeFontName(fontData.fileName || fontData.name);
+
+                const isDupName = pName && nName && pName === nName;
+                const isDupFile = primary.fileName && fontData.fileName && primary.fileName === fontData.fileName;
+
+                if (isDupName || isDupFile) {
+                    console.warn('[TypoContext] Attempted to add primary font as fallback. Skipping.');
+                    return prev;
+                }
+
+                // Also check against existing fallbacks to prevent double-adding the same system font
+                const isExistingFallback = prev.some(f => {
+                    if (f.type !== 'fallback') return false;
+                    const fName = normalizeFontName(f.fileName || f.name);
+                    return fName === nName;
+                });
+
+                if (isExistingFallback) {
+                    console.warn('[TypoContext] Attempted to add duplicate fallback font. Skipping.');
+                    return prev;
+                }
+            }
+
+            const nextColor = DEFAULT_PALETTE[prev.length % DEFAULT_PALETTE.length];
+            const newFont = { ...fontData, color: nextColor };
+
+            // If adding a system font, append at the end
+            if (isSystemFont(newFont)) {
+                return [...prev, newFont];
+            }
+
+            // If adding an uploaded font, insert after the last uploaded font but before system fonts
+            const lastUploadedIndex = prev.reduce((lastIdx, font, idx) => {
+                return !isSystemFont(font) ? idx : lastIdx;
+            }, -1);
+
+            // Insert after the last uploaded font (or after primary if no uploaded fallbacks yet)
+            const insertIndex = lastUploadedIndex + 1;
+            const before = prev.slice(0, insertIndex);
+            const after = prev.slice(insertIndex);
+            return [...before, newFont, ...after];
+        });
     };
 
     // Add multiple fallback fonts (batch)
     const addFallbackFonts = (fontsDataArray) => {
-        setFonts(prev => [...prev, ...fontsDataArray]);
+        setFonts(prev => {
+            const primary = prev.find(f => f.type === 'primary');
+            const pName = primary ? normalizeFontName(primary.fileName || primary.name) : null;
+
+            // Filter out duplicates (against primary AND existing fallbacks)
+            const uniqueFonts = fontsDataArray.filter(f => {
+                const nName = normalizeFontName(f.fileName || f.name);
+
+                // Check against primary
+                if (primary) {
+                    const isDupName = pName && nName && pName === nName;
+                    const isDupFile = primary.fileName && f.fileName && primary.fileName === f.fileName;
+                    if (isDupName || isDupFile) return false;
+                }
+
+                // Check against existing fallbacks
+                const isExisting = prev.some(existing => {
+                    if (existing.type !== 'fallback') return false;
+                    const existingName = normalizeFontName(existing.fileName || existing.name);
+                    return existingName === nName;
+                });
+
+                return !isExisting;
+            });
+
+            if (uniqueFonts.length === 0) return prev;
+
+            let currentLen = prev.length;
+            const newFonts = uniqueFonts.map((f, i) => ({
+                ...f,
+                color: DEFAULT_PALETTE[(currentLen + i) % DEFAULT_PALETTE.length]
+            }));
+            return [...prev, ...newFonts];
+        });
     };
 
     // Remove a fallback font
@@ -571,10 +737,33 @@ export const TypoProvider = ({ children }) => {
 
             const primaryChanged = oldIndex === 0 || newIndex === 0;
 
+            // Check if primary font identity changed
+            const oldPrimaryId = currentFonts[0]?.id;
+            const newPrimaryId = newFonts[0]?.id;
+            const hasPrimaryChanged = oldPrimaryId && newPrimaryId && oldPrimaryId !== newPrimaryId;
+
+            // Logic to swap colors: 
+            // If primary changed, the new primary should take the old primary's color
+            // And the old primary (now fallback) should take the new primary's original color.
+            let colorSwapMap = {}; // fontId -> newColor
+            if (hasPrimaryChanged) {
+                const oldPrimaryFont = currentFonts.find(f => f.id === oldPrimaryId);
+                const newPrimaryFont = currentFonts.find(f => f.id === newPrimaryId);
+
+                if (oldPrimaryFont && newPrimaryFont) {
+                    // Swap colors
+                    colorSwapMap[newPrimaryId] = oldPrimaryFont.color; // New primary gets old primary's color (e.g. Black)
+                    colorSwapMap[oldPrimaryId] = newPrimaryFont.color; // Old primary gets new primary's original color
+                }
+            }
+
             // Reassign types based on new position
             // Index 0 is always Primary, others are Fallback
             const finalFonts = newFonts.map((font, index) => {
                 const nextType = index === 0 ? 'primary' : 'fallback';
+
+                // Check if we need to swap color for this font
+                const nextColor = colorSwapMap[font.id] !== undefined ? colorSwapMap[font.id] : font.color;
 
                 // If a fallback becomes the primary (or primary moves away), reset all fallback overrides
                 // so they inherit from the new primary by default.
@@ -582,11 +771,16 @@ export const TypoProvider = ({ children }) => {
                     return {
                         ...font,
                         type: nextType,
+                        color: nextColor,
                         baseFontSize: undefined,
                         scale: undefined,
                         lineHeight: undefined,
                         letterSpacing: undefined,
-                        weightOverride: undefined
+                        weightOverride: undefined,
+                        fontSizeAdjust: undefined,
+                        lineGapOverride: undefined,
+                        ascentOverride: undefined,
+                        descentOverride: undefined
                     };
                 }
 
@@ -595,17 +789,23 @@ export const TypoProvider = ({ children }) => {
                     return {
                         ...font,
                         type: nextType,
+                        color: nextColor,
                         baseFontSize: undefined,
                         scale: undefined,
                         lineHeight: undefined,
                         letterSpacing: undefined,
-                        weightOverride: undefined
+                        weightOverride: undefined,
+                        fontSizeAdjust: undefined,
+                        lineGapOverride: undefined,
+                        ascentOverride: undefined,
+                        descentOverride: undefined
                     };
                 }
 
                 return {
                     ...font,
-                    type: nextType
+                    type: nextType,
+                    color: nextColor
                 };
             });
 
@@ -634,6 +834,15 @@ export const TypoProvider = ({ children }) => {
         ));
     };
 
+    // Toggle font visibility
+    const toggleFontVisibility = (fontId) => {
+        setFonts(prev => prev.map(f =>
+            f.id === fontId
+                ? { ...f, hidden: !f.hidden }
+                : f
+        ));
+    };
+
     // Reset a fallback font's overrides to use global settings
     const resetFallbackFontOverrides = (fontId) => {
         setFonts(prev => prev.map(f =>
@@ -644,10 +853,42 @@ export const TypoProvider = ({ children }) => {
                     scale: undefined,
                     lineHeight: undefined,
                     letterSpacing: undefined,
-                    weightOverride: undefined
+                    weightOverride: undefined,
+
+                    fontSizeAdjust: undefined,
+                    lineGapOverride: undefined,
+                    ascentOverride: undefined,
+                    descentOverride: undefined
                 }
                 : f
         ));
+    };
+
+    const toggleFallbackLineHeightAuto = (fontId) => {
+        setFonts(prev => prev.map(f => {
+            if (f.id !== fontId || f.type !== 'fallback') return f;
+
+            const isAuto = f.lineHeight === 'normal';
+            if (isAuto) {
+                // Turning Auto OFF: Restore previous manual value (if any)
+                let restored = f.previousLineHeight;
+                // SAFEGUARD: If restored value is invalid or 'normal', default to 1.2
+                if (restored === 'normal' || restored === undefined || restored === null) {
+                    restored = 1.2;
+                }
+                return {
+                    ...f,
+                    lineHeight: restored
+                };
+            } else {
+                // Turning Auto ON: Save current manual value
+                return {
+                    ...f,
+                    previousLineHeight: f.lineHeight,
+                    lineHeight: 'normal'
+                };
+            }
+        }));
     };
 
     // Get effective settings for a font (uses overrides if available, otherwise global)
@@ -668,7 +909,11 @@ export const TypoProvider = ({ children }) => {
                 baseFontSize: font.baseFontSize ?? baseFontSize,
                 scale: font.scale ?? fontScales.fallback,
                 lineHeight: font.lineHeight ?? lineHeight,
-                weight: resolveWeightForFont(font, font.weightOverride ?? weight) // Override OR global (resolved for this font)
+                weight: resolveWeightForFont(font, font.weightOverride ?? weight), // Override OR global (resolved for this font)
+
+                lineGapOverride: font.lineGapOverride, // CSS line-gap-override value (undefined = none)
+                ascentOverride: font.ascentOverride,
+                descentOverride: font.descentOverride
             };
         }
     };
@@ -766,36 +1011,26 @@ export const TypoProvider = ({ children }) => {
         return fallbackFontOverrides[langId] || null;
     };
 
-    const fontColors = activeStyle.fontColors;
-    const setFontColors = (valueOrUpdater) => {
-        updateStyleState(activeFontStyleId, prev => ({
-            ...prev,
-            fontColors: typeof valueOrUpdater === 'function' ? valueOrUpdater(prev.fontColors) : valueOrUpdater
-        }));
+    // fontColors removed as it is now part of font object
+
+    const updateFontColor = (fontId, color) => {
+        setFonts(prev => prev.map(f =>
+            f.id === fontId ? { ...f, color } : f
+        ));
     };
 
-    const updateFontColor = (index, color) => {
-        setFontColors(prev => {
-            const newColors = [...prev];
-            while (newColors.length <= index) {
-                newColors.push(DEFAULT_PALETTE[newColors.length % DEFAULT_PALETTE.length]);
-            }
-            newColors[index] = color;
-            return newColors;
-        });
-    };
-
-    const getFontColor = (index) => {
-        if (fontColors[index]) {
-            return fontColors[index];
-        }
-        return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+    const getFontColor = (fontId) => {
+        const font = fonts.find(f => f.id === fontId);
+        return font?.color || DEFAULT_PALETTE[0];
     };
 
     const getFontColorForStyle = (styleId, index) => {
         const style = fontStyles[styleId];
-        const palette = style?.fontColors || DEFAULT_PALETTE;
-        return palette[index] || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+        const fonts = style?.fonts || [];
+        if (fonts[index]) {
+            return fonts[index].color || DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
+        }
+        return DEFAULT_PALETTE[index % DEFAULT_PALETTE.length];
     };
 
     const updateFontWeight = (fontId, newWeight) => {
@@ -836,7 +1071,9 @@ export const TypoProvider = ({ children }) => {
                         scale: undefined,
                         lineHeight: undefined,
                         letterSpacing: undefined,
-                        weightOverride: undefined
+                        weightOverride: undefined,
+                        fontSizeAdjust: undefined,
+                        sizeAdjust: undefined
                     }
                     : f
             )
@@ -959,8 +1196,11 @@ export const TypoProvider = ({ children }) => {
     ]);
 
     const restoreConfiguration = useCallback(async (rawConfig, fontFilesMap = {}) => {
-        const config = ConfigService.normalizeConfig(rawConfig);
+        let config = ConfigService.normalizeConfig(rawConfig);
         if (!config) return;
+
+        // NEW: Validate to remove orphaned overrides
+        config = ConfigService.validateConfig(config);
 
         // Restore simple state
         setActiveFontStyleId(config.activeFontStyleId || 'primary');
@@ -1078,8 +1318,7 @@ export const TypoProvider = ({ children }) => {
             // NEW: Multi-font system
             fonts,
             setFonts,
-            fontColors, // Expose colors state
-            setFontColors,
+            // fontColors removed
             updateFontColor,
             getFontColor, // Expose helper
             activeFont,
@@ -1092,6 +1331,7 @@ export const TypoProvider = ({ children }) => {
             reorderFonts,
             updateFallbackFontOverride,
             resetFallbackFontOverrides,
+            toggleFallbackLineHeightAuto,
             getEffectiveFontSettings,
             updateFontWeight,
 
@@ -1102,6 +1342,7 @@ export const TypoProvider = ({ children }) => {
             loadFont,
             fallbackFont,
             setFallbackFont,
+            toggleFontVisibility,
             colors,
             setColors,
             fontSizes, // Derived
@@ -1113,6 +1354,9 @@ export const TypoProvider = ({ children }) => {
             setFontScales,
             lineHeight,
             setLineHeight,
+            previousLineHeight,
+            toggleGlobalLineHeightAuto,
+            setPreviousLineHeight,
             letterSpacing,
             setLetterSpacing,
             weight,
