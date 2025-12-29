@@ -15,7 +15,8 @@ const SidebarLanguageList = ({
     onAddLanguage,
     onManageLanguages,
     highlitLanguageId,
-    setHighlitLanguageId
+    setHighlitLanguageId,
+    primaryLanguages = [] // New prop
 }) => {
     // Helper to format language name: removes native script part if present and non-Latin-1
     const formatLanguageName = (name) => {
@@ -54,7 +55,6 @@ const SidebarLanguageList = ({
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Targeted
                 </span>
-
             </div>
 
             <div className="flex flex-col gap-1">
@@ -71,10 +71,11 @@ const SidebarLanguageList = ({
                         (selectedGroup === 'ALL_TARGETED' && targetedLanguageIds?.includes(lang.id)) ||
                         getLanguageGroup(lang) === selectedGroup;
 
-                    const isSystemDefault = lang.id === 'en-US';
+                    const isPrimary = primaryLanguages.includes(lang.id) || (primaryLanguages.length === 0 && lang.id === 'en-US');
+                    const isSystemDefault = isPrimary;
                     const hasOverrides = primaryFontOverrides?.[lang.id] || fallbackFontOverrides?.[lang.id];
-                    const isSelected = activeTab === lang.id || (activeTab === 'primary' && lang.id === 'en-US');
-                    const isHighlighted = highlitLanguageId === lang.id || (highlitLanguageId === 'primary' && lang.id === 'en-US');
+                    const isSelected = activeTab === lang.id || (activeTab === 'primary' && isPrimary);
+                    const isHighlighted = highlitLanguageId === lang.id || (highlitLanguageId === 'primary' && isPrimary);
                     const isActive = isSelected || isHighlighted;
 
                     return (
@@ -95,7 +96,7 @@ const SidebarLanguageList = ({
                                     } else {
                                         // Standard select
                                         if (setHighlitLanguageId) setHighlitLanguageId(lang.id);
-                                        setActiveTab(lang.id === 'en-US' ? 'primary' : lang.id);
+                                        setActiveTab(isPrimary ? 'primary' : lang.id);
                                     }
                                 }}
                                 className={`

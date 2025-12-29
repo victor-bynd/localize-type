@@ -414,17 +414,15 @@ export const TypoProvider = ({ children }) => {
 
     const togglePrimaryLanguage = (langId) => {
         updateStyleState(activeFontStyleId, prev => {
+            // Enforce single selection: Selecting a new language makes it the ONLY primary language.
+            // If clicking the ID that is already primary, we keep it as is (enforce always having 1)
             const current = prev.primaryLanguages || ['en-US'];
-            const exists = current.includes(langId);
-            let next;
-            if (exists) {
-                next = current.filter(id => id !== langId);
-            } else {
-                next = [...current, langId];
+            if (current.includes(langId)) {
+                return prev;
             }
             return {
                 ...prev,
-                primaryLanguages: next
+                primaryLanguages: [langId]
             };
         });
     };
@@ -1736,6 +1734,7 @@ export const TypoProvider = ({ children }) => {
             textCase,
             viewMode,
             gridColumns,
+            colors,
             showFallbackColors,
             showAlignmentGuides,
             showBrowserGuides,

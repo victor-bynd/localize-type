@@ -5,6 +5,7 @@ import FallbackFontAdder from './FallbackFontAdder';
 import LanguageSingleSelectModal from './LanguageSingleSelectModal';
 import { buildWeightSelectOptions, resolveWeightToAvailableOption } from '../utils/weightUtils';
 import { createFontUrl, parseFontFile } from '../services/FontLoader';
+import InfoTooltip from './InfoTooltip';
 
 export const FontCard = ({
     font,
@@ -207,7 +208,7 @@ export const FontCard = ({
                     {(!isPrimary || font.isPrimaryOverride) && (
                         <div className="space-y-1">
                             <div className="flex justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                <span>{font.isPrimaryOverride ? 'Rem' : 'Scale'}</span>
+                                <span>{font.isPrimaryOverride ? 'Rem' : 'Size-Adjust'}</span>
                                 <span className="text-indigo-600 font-mono">
                                     {font.isPrimaryOverride
                                         ? (font.h1Rem || 3.75).toFixed(2)
@@ -647,6 +648,17 @@ const FontCards = ({ activeTab, readOnly = false }) => {
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                 FALLBACK FONTS
                             </span>
+                            <InfoTooltip
+                                content={
+                                    <span>
+                                        <strong className="block mb-2 text-indigo-300">Styling Limitations</strong>
+                                        Properties like `line-height` and `letter-spacing` apply to the entire element, meaning primary and fallback fonts share them. To style scripts independently, you must use separate elements (e.g., spans).
+                                        <br /><br />
+                                        <strong className="block mb-2 text-indigo-300">Browser Compatibility</strong>
+                                        Advanced `@font-face` metrics like `ascent-override`, `descent-override`, and `line-gap-override` are currently not supported in **Safari**. Use these with caution if your target audience uses macOS or iOS.
+                                    </span>
+                                }
+                            />
                             <div className="h-px flex-1 bg-slate-100"></div>
                         </div>
                         {unassignedFonts.map((font) => (

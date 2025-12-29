@@ -4,13 +4,19 @@ import SidebarHeaderConfig from './SidebarHeaderConfig';
 import SidebarLanguages from './SidebarLanguages';
 import SidebarFonts from './SidebarFonts';
 
-const SideBar = ({ sidebarMode, setPreviewMode, selectedGroup, onSelectGroup, onAddLanguage, highlitLanguageId, setHighlitLanguageId, onManageLanguages }) => {
+const SideBar = ({ sidebarMode, setSidebarMode, setPreviewMode, selectedGroup, onSelectGroup, onAddLanguage, highlitLanguageId, setHighlitLanguageId, onManageLanguages, ...props }) => {
     const { fontObject } = useTypo();
 
     if (!fontObject) return null;
 
     return (
-        <div className="flex h-screen sticky top-0 bg-white z-10 shadow-[4px_0_24px_-4px_rgba(0,0,0,0.05)] border-r border-gray-200">
+        <div className={`
+            flex h-screen sticky top-0 bg-white z-10 border-gray-200 transition-all duration-300
+            ${sidebarMode === 'headers'
+                ? 'border-l shadow-[-4px_0_24px_-4px_rgba(0,0,0,0.05)]'
+                : 'border-r shadow-[4px_0_24px_-4px_rgba(0,0,0,0.05)]'
+            }
+        `}>
             {sidebarMode === 'main' && (
                 <>
                     <SidebarLanguages
@@ -20,6 +26,8 @@ const SideBar = ({ sidebarMode, setPreviewMode, selectedGroup, onSelectGroup, on
                         highlitLanguageId={highlitLanguageId}
                         setHighlitLanguageId={setHighlitLanguageId}
                         onManageLanguages={onManageLanguages}
+                        onOpenSettings={props.onOpenSettings}
+                        onResetApp={props.onResetApp}
                     />
                     <SidebarFonts />
                 </>
@@ -27,7 +35,7 @@ const SideBar = ({ sidebarMode, setPreviewMode, selectedGroup, onSelectGroup, on
 
             {/* Header Editor - Full Replacement (Occupies full sidebar width) */}
             {sidebarMode === 'headers' && (
-                <SidebarHeaderConfig />
+                <SidebarHeaderConfig onBack={() => setSidebarMode('main')} />
             )}
         </div>
     );

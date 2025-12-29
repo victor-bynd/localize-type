@@ -8,31 +8,33 @@ import FontSelectionModal from './FontSelectionModal';
 
 const LanguageCard = ({ language, isHighlighted }) => {
     const {
-        activeFontStyleId,
-        setActiveConfigTab,
-        activeConfigTab,
-        fontObject,
+        primaryLanguages,
+        togglePrimaryLanguage,
         fontStyles,
+        headerStyles,
+        colors,
+        textOverrides,
+        setTextOverride,
+        activeConfigTab,
+        setActiveConfigTab,
+        showFallbackColors,
+        showBrowserGuides,
+        addLanguageSpecificFallbackFont,
         getFontsForStyle,
         getPrimaryFontFromStyle,
-        colors,
+        getEffectiveFontSettingsForStyle,
+        setFallbackFontOverrideForStyle,
+        clearFallbackFontOverrideForStyle,
+        getPrimaryFontOverrideForStyle,
+        getFallbackFontOverrideForStyle,
+        removeConfiguredLanguage,
+        viewMode,
         textCase,
-        addLanguageSpecificFallbackFont,
-        headerFontStyleMap, // Added this back as it was used
-        getFallbackFontOverrideForStyle, // Added this back as it was used
-        textOverrides, // Added this back as it was used
-        resetTextOverride, // Added this back as it was used
-        setTextOverride, // Added this back as it was used
-        getPrimaryFontOverrideForStyle, // Added this back as it was used
-        getEffectiveFontSettingsForStyle, // Added this back as it was used
-        showFallbackColors, // Added this back as it was used
-        showBrowserGuides, // Added this back as it was used
-        viewMode, // Added this back as it was used
-        headerStyles, // Added this back as it was used
-        clearFallbackFontOverrideForStyle, // Added this back as it was used
-        setFallbackFontOverrideForStyle, // Added this back as it was used
-        showAlignmentGuides, // Added this back as it was used
-        primaryLanguages, // New
+        fontObject,
+        showAlignmentGuides,
+        headerFontStyleMap,
+        activeFontStyleId,
+        resetTextOverride
     } = useTypo();
 
     const { buildFallbackFontStackForStyle } = useFontStack();
@@ -427,44 +429,34 @@ const LanguageCard = ({ language, isHighlighted }) => {
                         <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Custom</span>
                     )}
                 </div>
-                <div className="flex flex-wrap items-center gap-4">
-
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500 font-semibold uppercase tracking-wide">ASSIGN Font</span>
-                        <FontConfigDropdown
-                            language={language}
-                            currentFallbackLabel={currentFallbackLabel}
-                            fallbackOverrideFontId={fallbackOverrideFontId}
-                            fallbackOverrideOptions={fallbackOverrideOptions}
-                            onSelectFallback={(val) => {
-                                if (!val) {
-                                    clearFallbackFontOverrideForStyle(activeMetricsStyleId, language.id);
-                                } else if (val === 'legacy') {
-                                    setFallbackFontOverrideForStyle(activeMetricsStyleId, language.id, 'legacy');
-                                } else {
-                                    // Direct Target instead of cloning
-                                    setFallbackFontOverrideForStyle(activeMetricsStyleId, language.id, val);
-                                }
-                            }}
-                            isOpen={configDropdownOpen}
-                            onToggle={() => setConfigDropdownOpen(!configDropdownOpen)}
-                            onClose={() => setConfigDropdownOpen(false)}
-                            addLanguageSpecificFallbackFont={addLanguageSpecificFallbackFont}
-                        />
-                    </div>
-
-                    {/* Edit Toggle */}
-                    <button
-                        onClick={handleStartEdit}
-                        className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-                        title="Edit text"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
-                            <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
-                            <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
-                        </svg>
-                        Edit
-                    </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <LanguageActionMenu
+                        language={language}
+                        currentFallbackLabel={currentFallbackLabel}
+                        fallbackOverrideFontId={fallbackOverrideFontId}
+                        fallbackOverrideOptions={fallbackOverrideOptions}
+                        onSelectFallback={(val) => {
+                            if (!val) {
+                                clearFallbackFontOverrideForStyle(activeMetricsStyleId, language.id);
+                            } else if (val === 'legacy') {
+                                setFallbackFontOverrideForStyle(activeMetricsStyleId, language.id, 'legacy');
+                            } else {
+                                setFallbackFontOverrideForStyle(activeMetricsStyleId, language.id, val);
+                            }
+                        }}
+                        isOpen={configDropdownOpen}
+                        onToggle={() => setConfigDropdownOpen(!configDropdownOpen)}
+                        onClose={() => setConfigDropdownOpen(false)}
+                        addLanguageSpecificFallbackFont={addLanguageSpecificFallbackFont}
+                        onStartEdit={handleStartEdit}
+                        onResetText={() => {
+                            setEditText(language.pangram);
+                            setTextOverride(language.id, language.pangram);
+                        }}
+                        isPrimary={isPrimary}
+                        onTogglePrimary={() => togglePrimaryLanguage(language.id)}
+                        onRemove={() => removeConfiguredLanguage(language.id)}
+                    />
                 </div>
             </div>
 
@@ -801,7 +793,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
     );
 };
 
-const FontConfigDropdown = ({
+const LanguageActionMenu = ({
     language,
     currentFallbackLabel,
     fallbackOverrideFontId,
@@ -810,7 +802,12 @@ const FontConfigDropdown = ({
     isOpen,
     onToggle,
     onClose,
-    addLanguageSpecificFallbackFont
+    addLanguageSpecificFallbackFont,
+    onStartEdit,
+    onResetText,
+    isPrimary,
+    onTogglePrimary,
+    onRemove
 }) => {
     const dropdownRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -848,7 +845,6 @@ const FontConfigDropdown = ({
                 language.id
             );
 
-            // Close dropdown
             onClose();
         } catch (err) {
             console.error('Error uploading fallback font:', err);
@@ -860,9 +856,6 @@ const FontConfigDropdown = ({
         }
     };
 
-    // Use the current fallback label directly
-    const label = currentFallbackLabel;
-
     return (
         <div className="relative" ref={dropdownRef}>
             <input
@@ -873,76 +866,133 @@ const FontConfigDropdown = ({
                 onChange={handleFileUpload}
             />
             <button
-                onClick={onToggle}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onToggle();
+                }}
                 className={`
-                    group flex items-center justify-between gap-2 
-                    h-8 min-w-[140px] max-w-[200px]
-                    pl-3 pr-2.5 py-1.5 
-                    bg-white border rounded-lg 
-                    text-xs font-medium text-slate-700
-                    transition-all duration-200 ease-in-out
+                    p-1.5 rounded-lg transition-all duration-200
                     ${isOpen
-                        ? 'border-indigo-500 ring-4 ring-indigo-500/10 shadow-sm'
-                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50 shadow-sm'
+                        ? 'bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20'
+                        : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                     }
                 `}
-                title="Configure Fonts"
+                title="Language Settings"
             >
-                <span className="truncate flex-1 text-left">
-                    {label}
-                </span>
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    className={`
-                        w-4 h-4 text-slate-400 transition-transform duration-200
-                        ${isOpen ? 'rotate-180 text-indigo-500' : 'group-hover:text-slate-500'}
-                    `}
-                >
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                    <path d="M10 3a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM10 8.5a1.5 1.5 0 110 3 1.5 1.5 0 010-3zM10 14a1.5 1.5 0 110 3 1.5 1.5 0 010-3z" />
                 </svg>
             </button>
 
             {isOpen && (
-                <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 slide-in-from-top-2 origin-top-right">
+                <div
+                    className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-100 rounded-xl shadow-xl shadow-slate-200/50 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200 slide-in-from-top-2 origin-top-right"
+                    onClick={(e) => e.stopPropagation()}
+                >
                     <div className="p-1.5 space-y-0.5">
-                        {/* Select Font Button */}
+                        {/* Text Actions Section */}
+                        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Text Content
+                        </div>
+                        <button
+                            onClick={() => {
+                                onStartEdit();
+                                onClose();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 group transition-colors hover:bg-slate-50"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-indigo-600">
+                                <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
+                                <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
+                            </svg>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Edit Pangram</span>
+                        </button>
+                        <button
+                            onClick={() => {
+                                onResetText();
+                                onClose();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 group transition-colors hover:bg-slate-50"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-rose-600">
+                                <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.451a.75.75 0 000-1.5H4.125a.75.75 0 00-.75.75v4.125a.75.75 0 001.5 0v-2.33l.311.311a7 7 0 0011.912-4.595.75.75 0 00-1.286-.566zM4.688 8.576a5.5 5.5 0 019.201-2.466l.312.311h-2.451a.75.75 0 000-1.5h4.125a.75.75 0 00.75-.75V3.046a.75.75 0 00-1.5 0v2.33l-.311-.311a7 7 0 00-11.912 4.595.75.75 0 001.286.566z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-rose-700">Reset to Default</span>
+                        </button>
+
+                        <div className="my-1 border-t border-slate-100" />
+
+                        {/* Visibility Section */}
+                        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Status
+                        </div>
+                        <button
+                            onClick={() => {
+                                onTogglePrimary();
+                                onClose();
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center justify-between group transition-colors hover:bg-slate-50"
+                        >
+                            <div className="flex items-center gap-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill={isPrimary ? "currentColor" : "none"} stroke="currentColor" className={`w-4 h-4 ${isPrimary ? 'text-amber-400' : 'text-slate-400 group-hover:text-amber-500'}`}>
+                                    <path fillRule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clipRule="evenodd" />
+                                </svg>
+                                <span className="text-sm font-medium text-slate-700 group-hover:text-amber-700">Primary Language</span>
+                            </div>
+                            <div className={`w-8 h-4 rounded-full transition-colors relative ${isPrimary ? 'bg-indigo-600' : 'bg-slate-200'}`}>
+                                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform ${isPrimary ? 'left-4' : 'left-0.5'}`} />
+                            </div>
+                        </button>
+
+                        <div className="my-1 border-t border-slate-100" />
+
+                        {/* Font Settings Section */}
+                        <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                            Typography
+                        </div>
                         <button
                             onClick={() => {
                                 setShowFontModal(true);
                                 onClose();
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-3 group transition-colors hover:bg-slate-50"
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 group transition-colors hover:bg-slate-50"
                         >
-                            <div className="p-2 bg-indigo-50 rounded-md group-hover:bg-indigo-100 transition-colors mt-0.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600">
-                                    <path fillRule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10zm0 5.25a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                            <div className="flex-1">
-                                <div className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">Select Font</div>
-                                <div className="text-xs text-slate-500 leading-normal mt-0.5">Choose from uploaded fonts</div>
+                            <div className="w-4 h-4 flex items-center justify-center text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 font-serif italic">Aa</div>
+                            <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Assign Font</div>
+                                <div className="text-[10px] text-slate-400 truncate">{currentFallbackLabel}</div>
                             </div>
                         </button>
 
-                        {/* Upload Font Button */}
                         <button
                             onClick={() => {
                                 fileInputRef.current?.click();
                                 onClose();
                             }}
-                            className="w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-3 group transition-colors hover:bg-slate-50"
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 group transition-colors hover:bg-slate-50"
                         >
-                            <div className="p-2 bg-indigo-50 rounded-md group-hover:bg-indigo-100 transition-colors mt-0.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-indigo-600">
-                                    <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-                                </svg>
-                            </div>
-                            <div className="flex-1">
-                                <div className="text-sm font-semibold text-slate-800 group-hover:text-indigo-700 transition-colors">Upload Font</div>
-                                <div className="text-xs text-slate-500 leading-normal mt-0.5">Add a new font file</div>
-                            </div>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-indigo-600">
+                                <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                            </svg>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Upload Font</span>
+                        </button>
+
+                        <div className="my-1 border-t border-slate-100" />
+
+                        {/* Danger Zone */}
+                        <button
+                            onClick={() => {
+                                if (window.confirm(`Remove ${language.name} from your list?`)) {
+                                    onRemove();
+                                    onClose();
+                                }
+                            }}
+                            className="w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 group transition-colors hover:bg-rose-50"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-slate-400 group-hover:text-rose-600">
+                                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 007.542-2.53l.841-10.518.149.022a.75.75 0 00.23-1.482 41.038 41.038 0 00-2.365-.298V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4V2.5h1.25c.69 0 1.25.56 1.25 1.25v.302c-.833-.051-1.666-.076-2.5-.076s-1.667.025-2.5.076V3.75A1.25 1.25 0 018.75 2.5H10zM14.25 7.75l-.822 10.276a1.25 1.25 0 01-1.247 1.153H7.819a1.25 1.25 0 01-1.247-1.153L5.75 7.75h8.5z" clipRule="evenodd" />
+                            </svg>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-rose-700">Remove Language</span>
                         </button>
                     </div>
                 </div>
@@ -962,7 +1012,7 @@ const FontConfigDropdown = ({
     );
 };
 
-FontConfigDropdown.propTypes = {
+LanguageActionMenu.propTypes = {
     language: PropTypes.object.isRequired,
     currentFallbackLabel: PropTypes.string.isRequired,
     fallbackOverrideFontId: PropTypes.string,
@@ -971,7 +1021,12 @@ FontConfigDropdown.propTypes = {
     isOpen: PropTypes.bool.isRequired,
     onToggle: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired,
-    addLanguageSpecificFallbackFont: PropTypes.func.isRequired
+    addLanguageSpecificFallbackFont: PropTypes.func.isRequired,
+    onStartEdit: PropTypes.func.isRequired,
+    onResetText: PropTypes.func.isRequired,
+    isPrimary: PropTypes.bool.isRequired,
+    onTogglePrimary: PropTypes.func.isRequired,
+    onRemove: PropTypes.func.isRequired
 };
 
 LanguageCard.propTypes = {
@@ -979,7 +1034,8 @@ LanguageCard.propTypes = {
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
         pangram: PropTypes.string.isRequired
-    }).isRequired
+    }).isRequired,
+    isHighlighted: PropTypes.bool
 };
 
 export default LanguageCard;
