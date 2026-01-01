@@ -10,7 +10,7 @@ import InfoTooltip from './InfoTooltip';
 const LanguageCard = ({ language, isHighlighted }) => {
     const {
         primaryLanguages,
-        togglePrimaryLanguage,
+
         fontStyles,
         headerStyles,
         colors,
@@ -18,6 +18,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
         setTextOverride,
         activeConfigTab,
         setActiveConfigTab,
+        missingColor,
         showFallbackColors,
         showBrowserGuides,
         addLanguageSpecificFallbackFont,
@@ -35,7 +36,8 @@ const LanguageCard = ({ language, isHighlighted }) => {
         showAlignmentGuides,
         headerFontStyleMap,
         activeFontStyleId,
-        resetTextOverride
+        resetTextOverride,
+        systemFallbackOverrides
     } = useTypo();
 
     const { buildFallbackFontStackForStyle } = useFontStack();
@@ -127,11 +129,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
     const [configDropdownOpen, setConfigDropdownOpen] = useState(false);
     const cardRef = useRef(null);
 
-    useEffect(() => {
-        if (activeConfigTab === language.id) {
-            cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-    }, [activeConfigTab, language.id]);
+
 
     const getStyleIdForHeader = (tag) => {
         if (tag && headerFontStyleMap?.[tag]) return headerFontStyleMap[tag];
@@ -152,8 +150,8 @@ const LanguageCard = ({ language, isHighlighted }) => {
         return (font && font.hidden) ? null : id;
     };
 
-    // Determine the content to render: Override > Pangram
-    const contentToRender = textOverrides[language.id] || language.pangram;
+    // Determine the content to render: Override > Sample Sentence
+    const contentToRender = textOverrides[language.id] || language.sampleSentence;
 
     // Handle entering edit mode
     const handleStartEdit = () => {
@@ -163,7 +161,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
 
     // Handle saving
     const handleSave = () => {
-        if (editText.trim() === '' || editText === language.pangram) {
+        if (editText.trim() === '' || editText === language.sampleSentence) {
             resetTextOverride(language.id);
         } else {
             setTextOverride(language.id, editText);
@@ -180,11 +178,20 @@ const LanguageCard = ({ language, isHighlighted }) => {
         const result = {};
         Object.keys(fontStyles || {}).forEach(styleId => {
             const primaryOverrideId = getPrimaryFontOverrideForStyle(styleId, language.id);
-            const allFonts = getFontsForStyle(styleId);
-            let effectivePrimaryFont = primaryOverrideId
-                ? allFonts.find(f => f.id === primaryOverrideId)
-                : null;
+            const fallbackOverrideId = getFallbackFontOverrideForStyle(styleId, language.id);
 
+            const allFonts = getFontsForStyle(styleId);
+
+            let effectivePrimaryFont = null;
+
+            // 1. Check Primary Overrides (highest priority, strict overrides)
+            if (primaryOverrideId) {
+                effectivePrimaryFont = allFonts.find(f => f.id === primaryOverrideId);
+            }
+
+
+
+            // 3. functional Primary Font
             if (!effectivePrimaryFont) {
                 effectivePrimaryFont = getPrimaryFontFromStyle(styleId);
             }
@@ -244,8 +251,8 @@ const LanguageCard = ({ language, isHighlighted }) => {
 
                     // System fonts (no fontObject) use the 'missing/system' color because we can't verify 
                     // if they are truly used or if the browser fell back to the OS default.
-                    const useAssignedColor = fontIndex >= 0 && usedFallback.fontObject;
-                    const baseColor = useAssignedColor ? (fontObj?.color || colors.primary) : colors.missing;
+                    const useMappedColor = fontIndex >= 0 && usedFallback.fontObject;
+                    const baseColor = useMappedColor ? (fontObj?.color || colors.primary) : (systemFallbackOverrides[language.id]?.missingColor || missingColor);
                     const fontColor = showFallbackColors
                         ? baseColor
                         : (fonts[0]?.color || colors.primary);
@@ -295,12 +302,15 @@ const LanguageCard = ({ language, isHighlighted }) => {
                     borderRadius: '2px'
                 } : {};
 
-                return <span key={index} style={{ color: fonts[0]?.color || colors.primary, ...inlineBoxStyle }}>{char}</span>;
+                const primaryColor = effectivePrimaryFont?.color || fonts[0]?.color || colors.primary;
+                const finalColor = showFallbackColors ? primaryColor : (fonts[0]?.color || colors.primary);
+
+                return <span key={index} style={{ color: finalColor, ...inlineBoxStyle }}>{char}</span>;
             });
         });
 
         return result;
-    }, [buildFallbackFontStackForStyle, contentToRender, colors.missing, colors.primary, fontStyles, getEffectiveFontSettingsForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id, showFallbackColors, showBrowserGuides, getPrimaryFontOverrideForStyle]);
+    }, [buildFallbackFontStackForStyle, contentToRender, missingColor, systemFallbackOverrides, colors.primary, fontStyles, getEffectiveFontSettingsForStyle, getFontsForStyle, getPrimaryFontFromStyle, language.id, showFallbackColors, showBrowserGuides, getPrimaryFontOverrideForStyle, getFallbackFontOverrideForStyle]);
 
     // Stats based on current content (moved check to end of render)
 
@@ -312,12 +322,17 @@ const LanguageCard = ({ language, isHighlighted }) => {
     const metricsPrimaryFontObject = metricsPrimaryFont?.fontObject;
     const metricsFallbackFontStack = buildFallbackFontStackForStyle(activeMetricsStyleId, language.id);
 
-    const fallbackOverrideFontId = getFallbackFontOverrideForStyle(activeMetricsStyleId, language.id) || '';
+    let fallbackOverrideFontId = getFallbackFontOverrideForStyle(activeMetricsStyleId, language.id) || '';
+
+    // If primary language and no explicit override, default to mapping to primary font
+    if (!fallbackOverrideFontId && primaryLanguages?.includes(language.id) && metricsPrimaryFont) {
+        fallbackOverrideFontId = metricsPrimaryFont.id;
+    }
 
     const fallbackOverrideOptions = useMemo(() => {
         const fonts = getFontsForStyle(activeMetricsStyleId) || [];
         return fonts
-            .filter(f => f.type === 'fallback' && !f.isLangSpecific && !f.isPrimaryOverride)
+            .filter(f => (f.type === 'fallback' || f.type === 'primary') && !f.isLangSpecific && !f.isPrimaryOverride)
             .map(f => ({
                 id: f.id,
                 label: f.fileName?.replace(/\.[^/.]+$/, '') || f.name || 'Unnamed Font',
@@ -362,13 +377,41 @@ const LanguageCard = ({ language, isHighlighted }) => {
     const supportedPercent = totalCharsToCheck > 0 ? Math.round(((totalCharsToCheck - missingChars) / totalCharsToCheck) * 100) : 100;
     const isFullSupport = missingChars === 0;
 
-    const currentFallbackLabel = useMemo(() => {
-        if (!fallbackOverrideFontId) return 'Auto';
-        if (fallbackOverrideFontId === 'legacy') return 'System';
+    const currentFallbackFont = useMemo(() => {
+        if (!fallbackOverrideFontId || fallbackOverrideFontId === 'legacy') return null;
         const fonts = getFontsForStyle(activeMetricsStyleId) || [];
-        const font = fonts.find(f => f.id === fallbackOverrideFontId);
-        return font?.label || font?.fileName?.replace(/\.[^/.]+$/, '') || font?.name || 'Unknown';
+
+        if (typeof fallbackOverrideFontId === 'string') {
+            return fonts.find(f => f.id === fallbackOverrideFontId);
+        } else if (typeof fallbackOverrideFontId === 'object') {
+            // Pick the first one for the color indicator/badge logic
+            const firstId = Object.values(fallbackOverrideFontId)[0];
+            return fonts.find(f => f.id === firstId);
+        }
+        return null;
     }, [fallbackOverrideFontId, activeMetricsStyleId, getFontsForStyle]);
+
+    const currentFallbackLabel = useMemo(() => {
+        if (fallbackOverrideFontId === 'legacy') return 'System';
+        if (!fallbackOverrideFontId) return 'Auto';
+
+        if (typeof fallbackOverrideFontId === 'string') {
+            return currentFallbackFont?.label || currentFallbackFont?.fileName?.replace(/\.[^/.]+$/, '') || currentFallbackFont?.name || 'Unknown';
+        } else if (typeof fallbackOverrideFontId === 'object') {
+            const fonts = getFontsForStyle(activeMetricsStyleId) || [];
+            const mappedNames = Object.values(fallbackOverrideFontId)
+                .map(id => {
+                    const f = fonts.find(font => font.id === id);
+                    return f?.label || f?.fileName?.replace(/\.[^/.]+$/, '') || f?.name;
+                })
+                .filter(Boolean);
+
+            if (mappedNames.length === 0) return 'Auto';
+            if (mappedNames.length === 1) return mappedNames[0];
+            return `${mappedNames[0]} (+${mappedNames.length - 1})`;
+        }
+        return 'Auto';
+    }, [fallbackOverrideFontId, currentFallbackFont, activeMetricsStyleId, getFontsForStyle]);
 
     const supportHelpText = useMemo(() => {
         const isCJK = ['zh-Hans', 'zh-Hant', 'ja-JP', 'ko-KR'].includes(language.id);
@@ -378,7 +421,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
         return "Support is calculated against the full character set required for this language.";
     }, [language.id]);
 
-    if (!fontObject) return null;
+    // if (!fontObject) return null; // Removed to allow system font mode
 
 
 
@@ -408,40 +451,64 @@ const LanguageCard = ({ language, isHighlighted }) => {
             `}
         >
             <div className="bg-slate-50/50 px-5 py-3 border-b border-gray-100 flex flex-wrap gap-y-2 justify-between items-center backdrop-blur-sm relative z-20 rounded-t-xl">
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 min-w-0">
-                        <h3 className="font-bold text-sm text-slate-800 tracking-tight truncate">{language.name}</h3>
-                        <span className="text-[10px] font-mono text-slate-600 bg-slate-200/60 border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
-                            {language.id}
-                        </span>
-                        {isPrimary && (
-                            <div className="flex items-center text-amber-500" title="Primary Language (Always Visible)">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                                    <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                                </svg>
+                <div className="flex flex-col gap-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 min-w-0">
+                            <h3 className="font-bold text-sm text-slate-800 tracking-tight truncate">{language.name}</h3>
+                            <span className="text-[10px] font-mono text-slate-600 bg-slate-200/60 border border-slate-200 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                {language.id}
+                            </span>
+                            {isPrimary && (
+                                <div className="flex items-center text-amber-500" title="Primary Language (Always Visible)">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                        <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
+
+                        {hasVerifiableFont ? (
+                            <InfoTooltip content={supportHelpText}>
+                                <div
+                                    className={`text-[10px] font-mono border px-2 py-0.5 rounded-md whitespace-nowrap ${isFullSupport
+                                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                        : 'bg-rose-50 text-rose-600 border-rose-100'
+                                        }`}
+                                >
+                                    {supportedPercent}% Supported
+                                </div>
+                            </InfoTooltip>
+                        ) : (
+                            <div className="text-[10px] font-mono border px-2 py-0.5 rounded-md whitespace-nowrap bg-slate-100 text-slate-500 border-slate-200">
+                                Unknown Support
                             </div>
+                        )}
+
+                        {textOverrides[language.id] && (
+                            <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Custom</span>
                         )}
                     </div>
 
-                    {hasVerifiableFont ? (
-                        <InfoTooltip content={supportHelpText}>
-                            <div
-                                className={`text-[10px] font-mono border px-2 py-0.5 rounded-md whitespace-nowrap ${isFullSupport
-                                    ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
-                                    : 'bg-rose-50 text-rose-600 border-rose-100'
+                    {fallbackOverrideFontId && (
+                        <div>
+                            <span
+                                className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide max-w-[300px] truncate inline-block ${fallbackOverrideFontId === 'legacy' ? 'bg-slate-100 text-slate-500 border border-slate-200' : ''
                                     }`}
+                                style={currentFallbackFont?.color ? {
+                                    backgroundColor: currentFallbackFont.color + '1A', // ~10% opacity
+                                    color: currentFallbackFont.color,
+                                    borderColor: currentFallbackFont.color + '40', // ~25% opacity
+                                } : (!currentFallbackFont && fallbackOverrideFontId !== 'legacy' ? {
+                                    // Default blue fallback if font has no color but isn't legacy (should be rare)
+                                    backgroundColor: '#EFF6FF', // blue-50
+                                    color: '#2563EB', // blue-600
+                                    borderColor: '#DBEAFE' // blue-100
+                                } : {})}
+                                title={`Mapped to: ${currentFallbackLabel}`}
                             >
-                                {supportedPercent}% Supported
-                            </div>
-                        </InfoTooltip>
-                    ) : (
-                        <div className="text-[10px] font-mono border px-2 py-0.5 rounded-md whitespace-nowrap bg-slate-100 text-slate-500 border-slate-200">
-                            Unknown Support
+                                {currentFallbackLabel}
+                            </span>
                         </div>
-                    )}
-
-                    {textOverrides[language.id] && (
-                        <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">Custom</span>
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -464,12 +531,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
                         onClose={() => setConfigDropdownOpen(false)}
                         addLanguageSpecificFallbackFont={addLanguageSpecificFallbackFont}
                         onStartEdit={handleStartEdit}
-                        onResetText={() => {
-                            setEditText(language.pangram);
-                            resetTextOverride(language.id);
-                        }}
-                        isPrimary={isPrimary}
-                        onTogglePrimary={() => togglePrimaryLanguage(language.id)}
+
                         onRemove={() => removeConfiguredLanguage(language.id)}
                     />
                 </div>
@@ -494,7 +556,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
                         </button>
                         <button
                             onClick={() => {
-                                setEditText(language.pangram);
+                                setEditText(language.sampleSentence);
                                 resetTextOverride(language.id); // Clear override to remove "Custom" tag
                             }}
                             className="px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-rose-600 mr-auto"
@@ -542,12 +604,37 @@ const LanguageCard = ({ language, isHighlighted }) => {
                             // Calculate Base Size for this specific header's style
                             const fonts = getFontsForStyle(styleIdForTag);
                             const primaryOverrideId = getPrimaryFontOverrideForStyle(styleIdForTag, language.id);
-                            let primaryFont = primaryOverrideId
-                                ? fonts.find(f => f.id === primaryOverrideId)
-                                : null;
+                            const fallbackOverrideId = getFallbackFontOverrideForStyle(styleIdForTag, language.id);
 
+                            let primaryFont = null;
+
+
+
+                            // 2. Check Primary Override (Only if no explicit mapping exists)
+                            if (!primaryFont && primaryOverrideId) {
+                                primaryFont = fonts.find(f => f.id === primaryOverrideId);
+                            }
+
+                            // 3. Fallback to Global Primary
                             if (!primaryFont) {
                                 primaryFont = fonts.find(f => f.type === 'primary');
+                            }
+
+                            // Identify Global Primary (for comparison)
+                            const globalPrimary = fonts.find(f => f.type === 'primary');
+                            const isGlobalPrimary = primaryFont && globalPrimary && primaryFont.id === globalPrimary.id;
+
+                            if (language.id === 'mt-MT' && tag === 'h1') {
+                                console.log('[LanguageCard][Malti] Debug:', {
+                                    primaryFont,
+                                    isGlobalPrimary,
+                                    fontFamily: !isGlobalPrimary && primaryFont
+                                        ? `'FallbackFont-${styleIdForTag}-${primaryFont.id}'`
+                                        : `UploadedFont-${styleIdForTag}`,
+                                    hasUrl: !!primaryFont?.fontUrl,
+                                    fontName: primaryFont?.name,
+                                    fontId: primaryFont?.id
+                                });
                             }
 
                             const style = fontStyles?.[styleIdForTag];
@@ -620,15 +707,17 @@ const LanguageCard = ({ language, isHighlighted }) => {
                                 backgroundSize: `100% ${numericLineHeight}em`
                             } : {};
 
-                            const isActualOverride = primaryFont?.id === primaryOverrideId;
                             return (
                                 <div key={tag}>
                                     <span className="text-[10px] text-slate-400 font-mono uppercase mb-1 block">{tag}</span>
                                     <div
                                         dir={language.dir || 'ltr'}
                                         style={{
-                                            fontFamily: isActualOverride ? `'FallbackFont-${styleIdForTag}-${primaryOverrideId}'` : `UploadedFont-${styleIdForTag}`,
-                                            color: colors.primary,
+                                            // Usage: If it's NOT the global primary (meaning it's an Override or Mapped Font), use specific ID reference
+                                            fontFamily: !isGlobalPrimary && primaryFont
+                                                ? `'FallbackFont-${styleIdForTag}-${primaryFont.id}'`
+                                                : `UploadedFont-${styleIdForTag}`,
+                                            color: primaryFont?.color || colors.primary,
                                             fontSize: `${finalSizePx}px`,
                                             fontWeight: primarySettings.weight || 400,
                                             fontVariationSettings: primaryFont?.isVariable ? `'wght' ${primarySettings.weight || 400}` : undefined,
@@ -769,7 +858,7 @@ const LanguageCard = ({ language, isHighlighted }) => {
                                     dir={language.dir || 'ltr'}
                                     style={{
                                         fontFamily: isActualOverride ? `'FallbackFont-${styleIdForTag}-${primaryOverrideId}'` : `UploadedFont-${styleIdForTag}`,
-                                        color: colors.primary,
+                                        color: primaryFont?.color || colors.primary,
                                         fontSize: `${finalSizePx}px`,
                                         fontWeight: weight,
                                         fontVariationSettings: isVariable ? `'wght' ${weight}` : undefined,
@@ -819,9 +908,7 @@ const LanguageActionMenu = ({
     onClose,
     addLanguageSpecificFallbackFont,
     onStartEdit,
-    onResetText,
-    isPrimary,
-    onTogglePrimary,
+
     onRemove
 }) => {
     const dropdownRef = useRef(null);
@@ -920,7 +1007,7 @@ const LanguageActionMenu = ({
                                 <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
                                 <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
                             </svg>
-                            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Edit Pangram</span>
+                            <span className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Edit Sample Sentence</span>
                         </button>
                         <div className="my-1 border-t border-slate-100" />
 
@@ -937,7 +1024,7 @@ const LanguageActionMenu = ({
                         >
                             <div className="w-4 h-4 flex items-center justify-center text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 font-serif italic">Aa</div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Assign Font</div>
+                                <div className="text-sm font-medium text-slate-700 group-hover:text-indigo-700">Map Font</div>
                                 <div className="text-[10px] text-slate-400 truncate">{currentFallbackLabel}</div>
                             </div>
                         </button>
@@ -1001,9 +1088,7 @@ LanguageActionMenu.propTypes = {
     onClose: PropTypes.func.isRequired,
     addLanguageSpecificFallbackFont: PropTypes.func.isRequired,
     onStartEdit: PropTypes.func.isRequired,
-    onResetText: PropTypes.func.isRequired,
-    isPrimary: PropTypes.bool.isRequired,
-    onTogglePrimary: PropTypes.func.isRequired,
+
     onRemove: PropTypes.func.isRequired
 };
 
@@ -1011,9 +1096,9 @@ LanguageCard.propTypes = {
     language: PropTypes.shape({
         id: PropTypes.string.isRequired,
         name: PropTypes.string.isRequired,
-        pangram: PropTypes.string.isRequired
+        sampleSentence: PropTypes.string.isRequired
     }).isRequired,
     isHighlighted: PropTypes.bool
 };
 
-export default LanguageCard;
+export default LanguageCard; // Re-export

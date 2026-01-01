@@ -41,7 +41,7 @@ export const useFontFaceStyles = () => {
                     : '';
 
                 const fallbackRules = (style.fonts || [])
-                    .filter(f => f.type === 'fallback' && (f.fontUrl || f.name))
+                    .filter(f => (f.type === 'fallback' || f.type === 'primary') && (f.fontUrl || f.name))
                     .map(font => {
                         const settings = getEffectiveFontSettingsForStyle(styleId, font.id);
 
@@ -97,7 +97,16 @@ export const useFontFaceStyles = () => {
                             ? `descent-override: ${settings.descentOverride * 100}%;`
                             : '';
 
-                        const src = font.fontUrl ? `url('${font.fontUrl}')` : `local('${font.name}')`;
+                        // Recovery: If fontUrl is missing, try to find a matching font in the stack that HAS a url
+                        let activeUrl = font.fontUrl;
+                        if (!activeUrl && font.name) {
+                            const sibling = (style.fonts || []).find(f => f.fontUrl && (f.name === font.name || f.fileName === font.fileName));
+                            if (sibling) activeUrl = sibling.fontUrl;
+                            // Warn if recovery needed
+                            if (activeUrl) console.warn(`[useFontFaceStyles] Recovered URL for font ${font.id} from sibling ${sibling.id}`);
+                        }
+
+                        const src = activeUrl ? `url('${activeUrl}')` : `local('${font.name}')`;
 
                         return `
             @font-face {

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import clsx from 'clsx';
 import { useTypo } from '../context/useTypo';
 
@@ -7,28 +7,44 @@ import { parseFontFile, createFontUrl } from '../services/FontLoader';
 import FontLanguageModal from './FontLanguageModal';
 import LanguageSetupModal from './LanguageSetupModal';
 
-const FontUploader = ({ importConfig }) => {
+const FontUploader = ({ importConfig, preselectedLanguages = null, initialFiles = [], renderDropzone = true, onSetupReady = null }) => {
     const {
         loadFont,
         batchAddConfiguredLanguages,
-        batchAddFontsAndAssignments,
-        fontObject,
+        batchAddFontsAndMappings,
         addFallbackFonts,
-        addLanguageSpecificPrimaryFontFromId,
         addLanguageSpecificFallbackFont,
-        fonts
+        fonts,
+        normalizeFontName,
+        addPrimaryLanguageOverrides,
+        primaryLanguages,
+        fontObject,
+        togglePrimaryLanguage
     } = useTypo();
 
     // Removed internal useConfigImport to use prop from App.jsx
-
     const [pendingFonts, setPendingFonts] = useState([]);
-    const [prefilledAssignments, setPrefilledAssignments] = useState({});
-    const [importedLanguages, setImportedLanguages] = useState(null);
+    const [prefilledMappings, setPrefilledMappings] = useState({});
+    const [importedLanguages, setImportedLanguages] = useState(preselectedLanguages); // Initialize with prop
+
+    const fontsRef = useRef(fonts);
+    const pendingFontsRef = useRef(pendingFonts);
+
+    useEffect(() => {
+        fontsRef.current = fonts;
+    }, [fonts]);
+
+    useEffect(() => {
+        pendingFontsRef.current = pendingFonts;
+    }, [pendingFonts]);
 
     const fileInputRef = useRef(null);
     const configInputRef = useRef(null);
 
+    // Effect: Handle initial files passed via props (e.g. dropped on landing page)
+
     const handleFiles = useCallback(async (fileList) => {
+        console.log("handleFiles called with:", fileList);
         if (!fileList || fileList.length === 0) return;
 
         const files = Array.from(fileList);
@@ -37,10 +53,7 @@ const FontUploader = ({ importConfig }) => {
 
         // Separate JSON/TS and Font files
         for (const file of files) {
-            if (file.name.toLowerCase().endsWith('.json') || file.name.toLowerCase().endsWith('.fall')) {
-                jsonFiles.push(file);
-            } else if (file.name.toLowerCase().endsWith('.ts')) {
-                // Treat TS files as "JSON" candidates but parse differently
+            if (file.name.toLowerCase().endsWith('.json')) {
                 jsonFiles.push(file);
             } else {
                 fontFiles.push(file);
@@ -52,21 +65,15 @@ const FontUploader = ({ importConfig }) => {
             for (const file of jsonFiles) {
                 try {
                     const text = await file.text();
-                    let data;
-
-                    if (file.name.endsWith('.ts')) {
-                        data = TsImportService.parseTsContent(text);
-                    } else {
-                        data = JSON.parse(text);
-                    }
+                    const data = JSON.parse(text);
 
                     // DETECT TYPE: Lang List vs Full Config
                     // Full Config usually has 'fontStyles' or 'activeFontStyleId'
                     // OR it's a versioned config with 'metadata' and 'data'
                     if (data.fontStyles || data.activeFontStyleId || (data.metadata && data.data)) {
-                        // Extract assignments for pre-populating the modal
+                        // Extract mappings for pre-populating the modal
                         const configData = data.data || data;
-                        const extractedAssignments = {};
+                        const extractedMappings = {};
 
                         if (configData.fontStyles?.primary) {
                             const style = configData.fontStyles.primary;
@@ -81,12 +88,12 @@ const FontUploader = ({ importConfig }) => {
                                 }
                             });
 
-                            const addAssignment = (fontId, langId) => {
+                            const addMapping = (fontId, langId) => {
                                 const info = idsToInfo[fontId];
                                 if (!info) return;
 
-                                if (info.fileName) extractedAssignments[info.fileName] = langId;
-                                if (info.name) extractedAssignments[info.name] = langId;
+                                if (info.fileName) extractedMappings[info.fileName] = langId;
+                                if (info.name) extractedMappings[info.name] = langId;
                                 // We could also store by ID, but the pending fonts don't have stable IDs yet (they get new ones)
                             };
 
@@ -94,10 +101,10 @@ const FontUploader = ({ importConfig }) => {
                             if (style.fallbackFontOverrides) {
                                 Object.entries(style.fallbackFontOverrides).forEach(([langId, val]) => {
                                     if (typeof val === 'string') {
-                                        addAssignment(val, langId);
+                                        addMapping(val, langId);
                                     } else if (typeof val === 'object' && val !== null) {
-                                        Object.values(val).forEach(targetId => {
-                                            addAssignment(targetId, langId);
+                                        Object.values(val).forEach(mapId => {
+                                            addMapping(mapId, langId);
                                         });
                                     }
                                 });
@@ -106,13 +113,13 @@ const FontUploader = ({ importConfig }) => {
                             // Process Primary Overrides
                             if (style.primaryFontOverrides) {
                                 Object.entries(style.primaryFontOverrides).forEach(([langId, fontId]) => {
-                                    addAssignment(fontId, langId);
+                                    addMapping(fontId, langId);
                                 });
                             }
                         }
 
-                        if (Object.keys(extractedAssignments).length > 0) {
-                            setPrefilledAssignments(prev => ({ ...prev, ...extractedAssignments }));
+                        if (Object.keys(extractedMappings).length > 0) {
+                            setPrefilledMappings(prev => ({ ...prev, ...extractedMappings }));
                         }
 
                         // Delegate to full config import
@@ -121,13 +128,7 @@ const FontUploader = ({ importConfig }) => {
                         // But importConfig reads the file text again. 
                         // So we should construct a JSON File wrapper around the parsed data.
 
-                        if (file.name.endsWith('.ts')) {
-                            const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-                            const jsonFile = new File([blob], "imported-ts-config.json", { type: "application/json" });
-                            importConfig(jsonFile);
-                        } else {
-                            importConfig(file);
-                        }
+                        importConfig(file);
 
                         // If it's a full config, we usually stop processing this file as a list
                         // But if multiple files are dropped, we continue loop
@@ -160,32 +161,36 @@ const FontUploader = ({ importConfig }) => {
 
         const processedFonts = [];
         let errorCount = 0;
-        let skippedCount = 0;
 
         // Create a set of existing font file names for quick lookup
         // We look at the actual source filename if available, otherwise the font name
         const existingFontNames = new Set(
-            (fonts || []).map(f => (f.fileName || f.name || "").toLowerCase())
+            (fontsRef.current || []).map(f => normalizeFontName(f.fileName || f.name))
         );
         // Also verify if we are trying to add a font that is ALREADY pending (in case user drops twice before confirming)
         const pendingFontNames = new Set(
-            pendingFonts.map(f => (f.file.name || "").toLowerCase())
+            pendingFontsRef.current.map(f => normalizeFontName(f.file.name))
         );
 
         for (const file of fontFiles) {
-            const fileNameToCheck = file.name.toLowerCase();
+            const normalizedName = normalizeFontName(file.name);
 
             // 1. Check if it's already in the system
-            if (existingFontNames.has(fileNameToCheck)) {
+            // We only consider it a valid duplicate if it has a fontObject (actually loaded)
+            // If it's a "ghost" font (name only, no data), we ALLOW upload to fix it.
+            const existingFont = (fontsRef.current || []).find(f =>
+                normalizeFontName(f.fileName || f.name) === normalizedName
+            );
+
+            if (existingFont && existingFont.fontObject) {
                 console.log(`[FontUploader] Skipping duplicate upload (already installed): ${file.name}`);
-                skippedCount++;
                 continue;
             }
 
             // 2. Check if it's already pending
-            if (pendingFontNames.has(fileNameToCheck)) {
+            if (pendingFontNames.has(normalizedName)) {
                 console.log(`[FontUploader] Skipping duplicate upload (already pending): ${file.name}`);
-                skippedCount++;
+
                 continue;
             }
 
@@ -208,171 +213,283 @@ const FontUploader = ({ importConfig }) => {
             setPendingFonts(prev => [...prev, ...processedFonts]);
         }
 
-        if (skippedCount > 0) {
-            const msg = errorCount > 0
-                ? `Skipped ${skippedCount} duplicate(s) and failed to parse ${errorCount} file(s).`
-                : `Skipped ${skippedCount} duplicate font(s) that are already added.`;
-            alert(msg);
-        } else if (errorCount > 0) {
+        if (errorCount > 0) {
             alert(`Failed to parse ${errorCount} font file(s).`);
         }
-    }, [importConfig, fonts, pendingFonts]);
+    }, [importConfig, normalizeFontName]); // Removed fonts and pendingFonts to break loop
+
+    // Effect: Handle initial files passed via props (e.g. dropped on landing page)
+    useEffect(() => {
+        if (initialFiles && initialFiles.length > 0) {
+            console.log("FontUploader: Received initialFiles", initialFiles);
+            // Use short timeout to ensure state is ready if mounting
+            setTimeout(() => handleFiles(initialFiles), 0);
+        }
+    }, [initialFiles, handleFiles]);
+
+    // Effect: If we have preselected languages (wizard mode) and pending fonts arrive,
+    // we should consider auto-triggering the setup logic or at least be ready.
+    // Actually, importedLanguages state handles this.
+    // The existing logic waits for LanguageSetupModal to be confirmed via UI?
+    // Wait, the existing code renders LanguageSetupModal if importedLanguages is set.
+    // So if we pass preselectedLanguages, it sets importedLanguages, and Modal appears immediately?
+    // Yes. BUT we only want it to appear *after* a font is dropped for the "Primary Font" step.
+    // If we just setImportedLanguages(preselectedLanguages), the modal shows up BEFORE font drop?
+    // Let's check where LanguageSetupModal is rendered.
+    // It's rendered at the bottom: {importedLanguages && <LanguageSetupModal ... />}
+    // We DON'T want that modal to show until we have a font if we are in "Wizard Mode".
+    // OR: Maybe treating it as importedLanguages is wrong because that implies "Ready to Configure".
+    // In Wizard Mode, we want to hold the languages, wait for font, THEN configure.
+
+    // Better approach:
+    // Only trigger the "Setup" flow when we have BOTH languages AND a font.
+    // Allow `importedLanguages` to be null initially?
+    // No, let's keep it simple.
+    // If preselectedLanguages is set, we are in "Wizard Mode".
+    // We want the user to drop a font.
+    // When they drop a font, `handleFiles` adds it to `pendingFonts`.
+    // THEN we want to combine them?
+
+    // Let's modify the render condition for LanguageSetupModal/FontLanguageModal.
+
+    useEffect(() => {
+        if (importedLanguages && pendingFonts.length > 0 && onSetupReady) {
+            onSetupReady({
+                languages: importedLanguages,
+                fonts: pendingFonts
+            });
+            // Clear local state so we don't keep triggering
+            setTimeout(() => {
+                setImportedLanguages(null);
+                setPendingFonts([]);
+            }, 0);
+        }
+    }, [importedLanguages, pendingFonts, onSetupReady]);
+
 
     const handleSetupConfirm = async (setupMap, pooledFonts = [], primarySelection = null) => {
-        if (importedLanguages) {
-            // 1. Gather Unique Files (Pool + Overrides + Primary)
-            const uniqueFiles = new Map(); // filename -> fileObj
+        try {
+            if (importedLanguages) {
+                // 1. Gather Unique Files (Pool + Overrides + Primary)
+                const uniqueFiles = new Map(); // filename -> fileObj
 
-            // Add from Pool
-            pooledFonts.forEach(f => uniqueFiles.set(f.name, f));
+                // Add from Pool
+                pooledFonts.forEach(f => uniqueFiles.set(f.name, f));
 
-            // Add from Assignments
-            Object.values(setupMap).forEach(state => {
-                if ((state.type === 'upload' || state.type === 'pool') && state.file) {
-                    uniqueFiles.set(state.file.name, state.file);
-                }
-            });
-
-            // Add from Primary Selection
-            if (primarySelection && (primarySelection.type === 'upload' || primarySelection.type === 'pool') && primarySelection.file) {
-                uniqueFiles.set(primarySelection.file.name, primarySelection.file);
-            }
-
-            // 2. Load Fonts into System Objects
-            const loadedFontsRegister = [];
-            // We need to know which loaded font corresponds to the Primary Selection
-            let primaryLoadedData = null;
-
-            for (const [filename, file] of uniqueFiles.entries()) {
-                try {
-                    const { font, metadata } = await parseFontFile(file);
-                    const url = createFontUrl(file);
-                    const id = `uploaded-setup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
-                    const fontData = {
-                        id,
-                        type: 'fallback',
-                        fontObject: font,
-                        fontUrl: url,
-                        fileName: file.name,
-                        name: file.name,
-                        axes: metadata.axes,
-                        isVariable: metadata.isVariable,
-                        staticWeight: metadata.staticWeight ?? null
-                    };
-
-                    loadedFontsRegister.push(fontData);
-
-                    // Check if this is our selected primary font
-                    // Note: file.name is reliable here because uniqueFiles uses it as key
-                    if (primarySelection && primarySelection.file && primarySelection.file.name === filename) {
-                        primaryLoadedData = fontData;
+                // Add from Assignments
+                Object.values(setupMap).forEach(state => {
+                    if ((state.type === 'upload' || state.type === 'pool') && state.file) {
+                        uniqueFiles.set(state.file.name, state.file);
                     }
-
-                } catch (e) {
-                    console.error("Failed to load font " + filename, e);
-                }
-            }
-
-            // 3. Handle Primary Assignment First
-            // If explicit primary selection made
-            if (primarySelection && primarySelection.type !== 'current' && primaryLoadedData) {
-                const metadata = {
-                    axes: primaryLoadedData.axes,
-                    isVariable: primaryLoadedData.isVariable,
-                    staticWeight: primaryLoadedData.staticWeight
-                };
-                loadFont(primaryLoadedData.fontObject, primaryLoadedData.fontUrl, primaryLoadedData.name, metadata);
-            }
-            // Fallback: If NO primary exists at all (empty state) and no explicit choice, pick first from pool if available.
-            // This prevents "Empty App" state if user just verified a pool.
-            else if (!fontObject && loadedFontsRegister.length > 0 && primarySelection.type !== 'current') {
-                const primaryCandidate = loadedFontsRegister[0];
-                const metadata = {
-                    axes: primaryCandidate.axes,
-                    isVariable: primaryCandidate.isVariable,
-                    staticWeight: primaryCandidate.staticWeight
-                };
-                loadFont(primaryCandidate.fontObject, primaryCandidate.fontUrl, primaryCandidate.name, metadata);
-            }
-
-            // 4. Prepare Assignments map
-            const assignments = {};
-            Object.entries(setupMap).forEach(([langId, state]) => {
-                if ((state.type === 'upload' || state.type === 'pool') && state.file) {
-                    assignments[langId] = state.file.name;
-                }
-            });
-
-            // 5. Batch Update
-            if (loadedFontsRegister.length > 0 || Object.keys(assignments).length > 0) {
-                batchAddFontsAndAssignments({
-                    fonts: loadedFontsRegister,
-                    assignments: assignments,
-                    languageIds: importedLanguages // PASS ALL IMPORTED LANGUAGES
                 });
-            } else {
-                // If no fonts, just enable languages
-                batchAddConfiguredLanguages(importedLanguages);
+
+                // Add from Primary Selection
+                if (primarySelection && (primarySelection.type === 'upload' || primarySelection.type === 'pool') && primarySelection.file) {
+                    uniqueFiles.set(primarySelection.file.name, primarySelection.file);
+                }
+
+                // 2. Load Fonts into System Objects
+                const loadedFontsRegister = [];
+                // We need to know which loaded font corresponds to the Primary Selection
+                let primaryLoadedData = null;
+
+                for (const [filename, file] of uniqueFiles.entries()) {
+                    try {
+                        const { font, metadata } = await parseFontFile(file);
+                        const url = createFontUrl(file);
+                        const id = `uploaded-setup-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+                        const fontData = {
+                            id,
+                            type: 'fallback',
+                            fontObject: font,
+                            fontUrl: url,
+                            fileName: file.name,
+                            name: file.name,
+                            axes: metadata.axes,
+                            isVariable: metadata.isVariable,
+                            staticWeight: metadata.staticWeight ?? null
+                        };
+
+                        loadedFontsRegister.push(fontData);
+
+                        // Check if this is our selected primary font
+                        // Note: file.name is reliable here because uniqueFiles uses it as key
+                        if (primarySelection && primarySelection.file && primarySelection.file.name === filename) {
+                            primaryLoadedData = fontData;
+                        }
+
+                    } catch (e) {
+                        console.error("Failed to load font " + filename, e);
+                    }
+                }
+
+                // 3. Handle Primary Assignment First
+                // If explicit primary selection made
+                if (primarySelection && primarySelection.type !== 'current' && primaryLoadedData) {
+                    const metadata = {
+                        axes: primaryLoadedData.axes,
+                        isVariable: primaryLoadedData.isVariable,
+                        staticWeight: primaryLoadedData.staticWeight
+                    };
+                    loadFont(primaryLoadedData.fontObject, primaryLoadedData.fontUrl, primaryLoadedData.name, metadata);
+                }
+                // Fallback: If NO primary exists at all (empty state) and no explicit choice, pick first from pool if available.
+                // This prevents "Empty App" state if user just verified a pool.
+                else if (!fontObject && loadedFontsRegister.length > 0 && primarySelection.type !== 'current') {
+                    const primaryCandidate = loadedFontsRegister[0];
+                    const metadata = {
+                        axes: primaryCandidate.axes,
+                        isVariable: primaryCandidate.isVariable,
+                        staticWeight: primaryCandidate.staticWeight
+                    };
+                    loadFont(primaryCandidate.fontObject, primaryCandidate.fontUrl, primaryCandidate.name, metadata);
+                }
+
+                // 4. Prepare Mappings map
+                const mappings = {};
+                Object.entries(setupMap).forEach(([langId, state]) => {
+                    if ((state.type === 'upload' || state.type === 'pool') && state.file) {
+                        mappings[langId] = state.file.name;
+                    }
+                });
+
+                // 5. Batch Update
+                if (loadedFontsRegister.length > 0 || Object.keys(mappings).length > 0) {
+                    batchAddFontsAndMappings({
+                        fonts: loadedFontsRegister,
+                        mappings: mappings,
+                        languageIds: importedLanguages // PASS ALL IMPORTED LANGUAGES
+                    });
+                } else {
+                    // If no fonts, just enable languages
+                    batchAddConfiguredLanguages(importedLanguages);
+                }
             }
+        } catch (error) {
+            console.error("Error in setup confirm:", error);
+            alert("An error occurred during setup. Please try again.");
+        } finally {
+            setImportedLanguages(null);
+            setPendingFonts([]);
         }
-        setImportedLanguages(null);
     };
 
-    const handleModalConfirm = ({ assignments, orderedFonts }) => {
-        // ... existing logic ...
-        const autoFonts = [];
-        const primaryItem = orderedFonts[0];
+    const handleModalConfirm = ({ mappings, orderedFonts }) => {
+        try {
+            // ... existing logic ...
+            const autoFonts = [];
+            const primaryItem = orderedFonts[0];
 
-        // Use the ordered list from the modal
-        orderedFonts.forEach((item, index) => {
-            if (index === 0) return; // Skip primary
+            // Use the ordered list from the modal
+            orderedFonts.forEach((item, index) => {
+                if (index === 0) return; // Skip primary
 
-            const Target = assignments[item.file.name];
-            if (Target === 'auto') {
-                autoFonts.push(item);
-            } else {
-                // Language specific fallback Target
-                addLanguageSpecificFallbackFont(
-                    item.font,
-                    item.url,
-                    item.file.name,
-                    item.metadata,
-                    Target
-                );
-            }
-        });
-
-        // Load the designated Primary font first
-        if (primaryItem) {
-            loadFont(primaryItem.font, primaryItem.url, primaryItem.file.name, primaryItem.metadata);
-        }
-
-        // Remaining auto fonts become Fallbacks in the order they were in orderedFonts
-        if (autoFonts.length > 0) {
-            const fallbacks = autoFonts.map(item => {
-                return {
-                    id: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    type: 'fallback',
-                    fontObject: item.font,
-                    fontUrl: item.url,
-                    fileName: item.file.name,
-                    name: item.file.name,
-                    axes: item.metadata.axes,
-                    isVariable: item.metadata.isVariable,
-                    staticWeight: item.metadata.staticWeight ?? null
-                };
+                const Mapping = mappings[item.file.name];
+                if (Mapping === 'auto' || (Array.isArray(Mapping) && Mapping.length === 0)) {
+                    autoFonts.push(item);
+                } else if (Array.isArray(Mapping)) {
+                    Mapping.forEach(langId => {
+                        if (langId === 'auto') {
+                            autoFonts.push(item);
+                        } else {
+                            addLanguageSpecificFallbackFont(
+                                item.font,
+                                item.url,
+                                item.file.name,
+                                item.metadata,
+                                langId
+                            );
+                        }
+                    });
+                } else {
+                    // Language specific fallback Mapping (legacy string)
+                    addLanguageSpecificFallbackFont(
+                        item.font,
+                        item.url,
+                        item.file.name,
+                        item.metadata,
+                        Mapping
+                    );
+                }
             });
-            addFallbackFonts(fallbacks);
-        }
 
-        setPendingFonts([]);
-        setPrefilledAssignments({});
+            // Load the designated Primary font first
+            if (primaryItem) {
+                loadFont(primaryItem.font, primaryItem.url, primaryItem.file.name, primaryItem.metadata);
+            }
+
+            // Remaining auto fonts become Fallbacks in the order they were in orderedFonts
+            if (autoFonts.length > 0) {
+                const fallbacks = autoFonts.map(item => {
+                    return {
+                        id: `fallback-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                        type: 'fallback',
+                        fontObject: item.font,
+                        fontUrl: item.url,
+                        fileName: item.file.name,
+                        name: item.file.name,
+                        axes: item.metadata.axes,
+                        isVariable: item.metadata.isVariable,
+                        staticWeight: item.metadata.staticWeight ?? null
+                    };
+                });
+                addFallbackFonts(fallbacks);
+            }
+
+            // Ensure the Primary Language is mapped to the Primary Font
+            if (primaryLanguages && primaryLanguages.length > 0) {
+                addPrimaryLanguageOverrides(primaryLanguages);
+            }
+
+            // CRITICAL FIX: Ensure we have Configured Languages!
+            // If "Start with Font" is used, configuredLanguages is empty by default.
+            // We must add any mapped languages, or default to 'en-US' so the App doesn't show a blank screen.
+            setTimeout(() => {
+                const languagesToConfigure = new Set();
+
+                // 1. Add mapped languages
+                orderedFonts.forEach(item => {
+                    const Mapping = mappings[item.file.name];
+                    if (Array.isArray(Mapping)) {
+                        Mapping.forEach(id => {
+                            if (id !== 'auto') languagesToConfigure.add(id);
+                        });
+                    } else if (Mapping && Mapping !== 'auto') {
+                        languagesToConfigure.add(Mapping);
+                    }
+                });
+
+                // 2. Add existing primary languages (if any defined in context)
+                if (primaryLanguages && primaryLanguages.length > 0) {
+                    primaryLanguages.forEach(id => languagesToConfigure.add(id));
+                }
+
+                // 3. Default to en-US if empty
+                if (languagesToConfigure.size === 0) {
+                    languagesToConfigure.add('en-US');
+                    // Ensure en-US is set key as primary if we are defaulting to it
+                    // Check directly against current state references or assume empty if defaulting
+                    if (!primaryLanguages || primaryLanguages.length === 0) {
+                        togglePrimaryLanguage('en-US');
+                    }
+                }
+
+                batchAddConfiguredLanguages(Array.from(languagesToConfigure));
+            }, 50); // Small delay to let font load state settle and prevent main thread lockup
+
+        } catch (error) {
+            console.error("Error in font modal confirm:", error);
+            alert("An error occurred while processing fonts. Please try again.");
+        } finally {
+            setPendingFonts([]);
+            setPrefilledMappings({});
+        }
     };
 
     const handleModalCancel = () => {
         setPendingFonts([]);
-        setPrefilledAssignments({});
+        setPrefilledMappings({});
     };
 
     const onDrop = useCallback((e) => {
@@ -384,9 +501,7 @@ const FontUploader = ({ importConfig }) => {
         const configFiles = [];
 
         droppedFiles.forEach(file => {
-            if (file.name.toLowerCase().endsWith('.json') ||
-                file.name.toLowerCase().endsWith('.fall') ||
-                file.name.toLowerCase().endsWith('.ts')) {
+            if (file.name.toLowerCase().endsWith('.json')) {
                 configFiles.push(file);
             } else {
                 fontFiles.push(file);
@@ -394,7 +509,7 @@ const FontUploader = ({ importConfig }) => {
         });
 
         if (configFiles.length > 0) {
-            alert("Configuration files (.fall, .json, .ts) cannot be dropped here. Please use the 'Import Configuration' button.");
+            alert("Configuration files (.json) cannot be dropped here. Please use the 'Import Configuration' button.");
         }
 
         if (fontFiles.length > 0) {
@@ -419,77 +534,54 @@ const FontUploader = ({ importConfig }) => {
         }
     };
 
-    const triggerConfigImport = () => {
-        configInputRef.current?.click();
-    };
 
-    const tsInputRef = useRef(null);
 
-    const triggerTsImport = () => {
-        tsInputRef.current?.click();
-    };
+
 
     return (
         <>
-            <div
-                className={clsx(
-                    "group relative overflow-hidden",
-                    "border-2 border-dashed border-slate-300 rounded-xl p-12",
-                    "bg-white",
-                    "flex flex-col items-center justify-center text-center",
-                    "transition-all duration-300 ease-in-out",
-                    "hover:border-indigo-500 hover:bg-slate-50/50 hover:shadow-lg hover:shadow-indigo-500/10",
-                    "cursor-pointer"
-                )}
-                onDrop={onDrop}
-                onDragOver={onDragOver}
-                onClick={() => fileInputRef.current?.click()}
-            >
-                <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 text-slate-400 group-hover:text-indigo-500">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                    </svg>
-                </div>
-                <h3 className="text-lg font-bold text-slate-700 mb-1 group-hover:text-indigo-600 transition-colors">
-                    Drop Font Files
-                </h3>
-                <p className="text-sm text-slate-400 max-w-xs mx-auto mb-4">
-                    Supports .ttf, .otf, .woff, .woff2
-                </p>
+            {renderDropzone && (
+                <>
+                    <div
+                        className={clsx(
+                            "group relative overflow-hidden",
+                            "border-2 border-dashed border-slate-300 rounded-xl p-12",
+                            "bg-white",
+                            "flex flex-col items-center justify-center text-center",
+                            "transition-all duration-300 ease-in-out",
+                            "hover:border-indigo-500 hover:bg-slate-50/50 hover:shadow-lg hover:shadow-indigo-500/10",
+                            "cursor-pointer"
+                        )}
+                        onDrop={onDrop}
+                        onDragOver={onDragOver}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <div className="w-16 h-16 mb-4 rounded-full bg-slate-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 text-slate-400 group-hover:text-indigo-500">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-8 h-8">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                            </svg>
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-700 mb-1 group-hover:text-indigo-600 transition-colors">
+                            Drop Font Files
+                        </h3>
+                        <p className="text-sm text-slate-400 max-w-xs mx-auto mb-4">
+                            Supports .ttf, .otf, .woff, .woff2
+                        </p>
 
-                <div className="relative">
-                    <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full group-hover:bg-indigo-100 transition-colors">
-                        Browse Fonts
-                    </span>
-                </div>
-            </div>
-
-            {/* Config Import Buttons */}
-            <div className="mt-4 grid grid-cols-2 gap-3">
-                <button
-                    onClick={(e) => { e.stopPropagation(); triggerConfigImport(); }}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-500 hover:shadow-md transition-all group"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-slate-400 group-hover:text-indigo-500 transition-colors">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                    </svg>
-                    <div className="text-left">
-                        <span className="block text-xs font-bold text-slate-700 group-hover:text-indigo-600">Import Config</span>
-                        <span className="block text-[10px] text-slate-400">.fall / .json</span>
+                        <div className="relative">
+                            <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-3 py-1.5 rounded-full group-hover:bg-indigo-100 transition-colors">
+                                Browse Fonts
+                            </span>
+                        </div>
                     </div>
-                </button>
 
-                <button
-                    onClick={(e) => { e.stopPropagation(); triggerTsImport(); }}
-                    className="flex items-center justify-center gap-2 px-4 py-3 bg-white border border-slate-200 rounded-lg shadow-sm hover:border-indigo-500 hover:shadow-md transition-all group"
-                >
-                    <span className="flex items-center justify-center w-5 h-5 rounded bg-indigo-50 text-[10px] font-bold text-indigo-600">TS</span>
-                    <div className="text-left">
-                        <span className="block text-xs font-bold text-slate-700 group-hover:text-indigo-600">Import TypeScript</span>
-                        <span className="block text-[10px] text-slate-400">typography.types.ts</span>
-                    </div>
-                </button>
-            </div>
+                    {/* Config Import Buttons - Hide if in Wizard Mode (preselectedLanguages) */}
+                    {!preselectedLanguages && (
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                        </div>
+                    )}
+                </>
+            )}
 
             <input
                 type="file"
@@ -504,35 +596,45 @@ const FontUploader = ({ importConfig }) => {
                 type="file"
                 ref={configInputRef}
                 className="hidden"
-                accept=".json,.fall"
+                accept=".json"
                 onChange={onConfigInputChange}
             />
 
-            <input
-                type="file"
-                ref={tsInputRef}
-                className="hidden"
-                accept=".ts"
-                onChange={onConfigInputChange}
-            />
 
-            {pendingFonts.length > 0 && (
-                <FontLanguageModal
-                    pendingFonts={pendingFonts}
-                    initialAssignments={prefilledAssignments}
-                    onConfirm={handleModalConfirm}
-                    onCancel={handleModalCancel}
-                />
-            )}
 
-            {importedLanguages && (
-                <LanguageSetupModal
-                    languageIds={importedLanguages}
-                    onConfirm={handleSetupConfirm}
-                    onCancel={() => setImportedLanguages(null)}
-                />
-            )}
+            {
+                importedLanguages && (pendingFonts.length > 0) && (
+                    onSetupReady ? (
+                        // If onSetupReady is provided, we delegate control and do NOT render the modal here
+                        // We use an effect or immediate call to trigger the parent
+                        (() => {
+                            // This is inside render, which is not ideal for side effects.
+                            // Better to do this in an effect.
+                            return null;
+                        })()
+                    ) : (
+                        <LanguageSetupModal
+                            languageIds={importedLanguages}
+                            onConfirm={handleSetupConfirm}
+                            onCancel={() => setImportedLanguages(null)}
+                            forcedPrimaryFont={pendingFonts.length === 1 ? pendingFonts[0] : null} // Allow automatic selection if single font drop
+                        />
+                    )
+                )
+            }
+
+            {
+                !importedLanguages && pendingFonts.length > 0 && (
+                    <FontLanguageModal
+                        pendingFonts={pendingFonts}
+                        initialMappings={prefilledMappings}
+                        onConfirm={handleModalConfirm}
+                        onCancel={handleModalCancel}
+                    />
+                )
+            }
         </>
+
     );
 };
 

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 import LanguageList from './LanguageList';
 
@@ -13,8 +14,8 @@ const LanguageSingleSelectModal = ({ onClose, onSelect, currentId, title = "Sele
         return () => window.removeEventListener('keydown', onKeyDown);
     }, [onClose]);
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[70] p-4" onClick={onClose}>
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[100] p-4" onClick={onClose}>
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mt-12 overflow-hidden flex flex-col max-h-[75vh] animate-in fade-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
@@ -48,7 +49,8 @@ const LanguageSingleSelectModal = ({ onClose, onSelect, currentId, title = "Sele
                     showAuto={true}
                 />
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

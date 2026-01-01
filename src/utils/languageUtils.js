@@ -26,6 +26,7 @@ const GROUP_MAPPING = {
     // 1. Western Latin (Americas & Western Europe)
     'en-US': 'Western Latin (Americas & Western Europe)',
     'en-GB': 'Western Latin (Americas & Western Europe)',
+    'es': 'Western Latin (Americas & Western Europe)',
     'es-ES': 'Western Latin (Americas & Western Europe)',
     'es-MX': 'Western Latin (Americas & Western Europe)',
     'es-AR': 'Western Latin (Americas & Western Europe)',
@@ -70,6 +71,7 @@ const GROUP_MAPPING = {
     'hi-IN': 'APAC - South & Southeast Asia (Complex Scripts)',
     'mr-IN': 'APAC - South & Southeast Asia (Complex Scripts)',
     'bn-BD': 'APAC - South & Southeast Asia (Complex Scripts)',
+    'bn-IN': 'APAC - South & Southeast Asia (Complex Scripts)',
     'pa-IN': 'APAC - South & Southeast Asia (Complex Scripts)',
     'gu-IN': 'APAC - South & Southeast Asia (Complex Scripts)',
     'ta-IN': 'APAC - South & Southeast Asia (Complex Scripts)',

@@ -90,7 +90,7 @@ const LivePreview = ({ onClose }) => {
     const dir = selectedLang?.dir || 'ltr';
 
     const getSampleText = (multiplier = 1) => {
-        const text = languageCharacters[selectedLangId] || selectedLang?.pangram || "The quick brown fox jumps over the lazy dog.";
+        const text = languageCharacters[selectedLangId] || selectedLang?.sampleSentence || "The quick brown fox jumps over the lazy dog.";
         return text.repeat(multiplier);
     };
 
@@ -182,7 +182,7 @@ const LivePreview = ({ onClose }) => {
                     {/* Note: We remove Tailwind typography classes that conflict with our inline styles */}
                     <header className="px-6 py-20 md:py-32 max-w-3xl mx-auto text-center">
                         <h1 className="mb-6 text-slate-900" style={getHeaderStyle('h1')}>
-                            {selectedLang?.pangram || "Make typography better."}
+                            {selectedLang?.sampleSentence || "Make typography better."}
                         </h1>
                         <p className="text-xl md:text-2xl text-slate-600 mb-10 max-w-2xl mx-auto">
                             {getSampleText(2)}
@@ -211,7 +211,7 @@ const LivePreview = ({ onClose }) => {
                                 {getSampleText(3)}
                             </p>
                             <blockquote className="border-l-4 border-indigo-500 pl-4 italic my-8 text-slate-600 text-xl">
-                                "{selectedLang?.pangram}"
+                                "{selectedLang?.sampleSentence}"
                             </blockquote>
                             <p className="mb-6 text-slate-700">
                                 {getSampleText(4)}

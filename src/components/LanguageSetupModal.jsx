@@ -1,10 +1,10 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { useTypo } from '../context/useTypo';
 
-const LanguageSetupRow = ({ langId, state, onChange, pooledFonts = [] }) => {
+const LanguageSetupRow = ({ langId, state, onChange, pooledFonts = [], isPrimaryLanguage = false }) => {
     const { languages } = useTypo();
     const fileInputRef = useRef(null);
-    const { type, file, poolRef } = state || { type: 'inherit', file: null, poolRef: null };
+    const { type, file } = state || { type: 'inherit', file: null };
 
     // Find language details
     const language = languages.find(l => l.id === langId) || { id: langId, name: `Unknown (${langId})` };
@@ -19,73 +19,94 @@ const LanguageSetupRow = ({ langId, state, onChange, pooledFonts = [] }) => {
         }
     };
 
+    const isSelected = type === 'upload' || type === 'pool';
+
+    const clearSelection = () => {
+        if (isPrimaryLanguage) {
+            onChange({ type: 'current', file: null, poolRef: null });
+        } else {
+            onChange({ type: 'inherit', file: null, poolRef: null });
+        }
+    };
+
     return (
-        <tr className="hover:bg-slate-50 transition-colors border-b border-gray-50 last:border-0 group">
+        <tr className={`transition-colors border-b border-gray-50 last:border-0 group ${isPrimaryLanguage ? 'bg-indigo-50/30' : 'hover:bg-slate-50'}`}>
             <td className="px-5 py-3 align-middle">
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 uppercase shrink-0">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold uppercase shrink-0 ${isPrimaryLanguage ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>
                         {langId.substring(0, 2)}
                     </div>
                     <div>
-                        <div className="text-sm font-bold text-slate-800">{language.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{langId}</div>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-sm font-bold ${isPrimaryLanguage ? 'text-indigo-900' : 'text-slate-800'}`}>{language.name}</span>
+                            {isPrimaryLanguage && (
+                                <span className="text-[10px] font-bold uppercase bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded">Primary</span>
+                            )}
+                        </div>
+                        <div className={`text-[10px] font-mono ${isPrimaryLanguage ? 'text-indigo-400' : 'text-slate-400'}`}>{langId}</div>
                     </div>
                 </div>
             </td>
-            <td className="px-5 py-3 align-middle">
-                <div className="flex items-center gap-2">
-                    <select
-                        className={`w-full text-xs font-medium rounded-lg py-2 px-2.5 border outline-none transition-all
-                            ${type === 'inherit'
-                                ? 'bg-white border-gray-200 text-slate-500 hover:border-indigo-300'
-                                : 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold'
-                            }
-                        `}
-                        value={type === 'pool' && poolRef ? `pool:${poolRef.name}` : type}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === 'inherit') {
-                                onChange({ type: 'inherit', file: null, poolRef: null });
-                            } else if (val === 'upload') {
-                                fileInputRef.current?.click();
-                            } else if (val.startsWith('pool:')) {
-                                const fname = val.split('pool:')[1];
-                                const font = pooledFonts.find(f => f.name === fname);
-                                if (font) {
-                                    onChange({ type: 'pool', file: font, poolRef: font });
-                                }
-                            }
-                        }}
-                    >
-                        <option value="inherit">Inherit Primary</option>
+            <td className="px-5 py-3 align-middle text-right">
+                <div className="flex items-center justify-end gap-2">
 
-                        {pooledFonts.length > 0 && (
-                            <optgroup label="Batch Uploaded Fonts">
-                                {pooledFonts.map((f, i) => (
-                                    <option key={`p-${i}`} value={`pool:${f.name}`}>
-                                        Use Pool: {f.name}
-                                    </option>
-                                ))}
-                            </optgroup>
-                        )}
-
-                        <option value="upload">Upload file...</option>
-                    </select>
-
-                    {type === 'upload' && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded truncate max-w-[100px]" title={file?.name}>
-                                {file?.name}
+                    {!isSelected ? (
+                        <>
+                            {/* Default State Labels */}
+                            <span className="text-xs text-slate-400 font-medium mr-2">
+                                {isPrimaryLanguage ? 'System Default' : 'Inherit Primary'}
                             </span>
+
+                            {/* Upload Button */}
                             <button
                                 onClick={() => fileInputRef.current?.click()}
-                                className="text-slate-400 hover:text-indigo-600"
+                                className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-sm whitespace-nowrap"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                                    <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
-                                    <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
-                                </svg>
+                                Upload Font
                             </button>
+
+                            {/* Pool Selection (only if fonts exist) */}
+                            {pooledFonts.length > 0 && (
+                                <div className="relative">
+                                    <select
+                                        className="appearance-none cursor-pointer px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-sm pr-6 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                        value=""
+                                        onChange={(e) => {
+                                            const fname = e.target.value;
+                                            const font = pooledFonts.find(f => f.name === fname);
+                                            if (font) {
+                                                onChange({ type: 'pool', file: font, poolRef: font });
+                                            }
+                                        }}
+                                    >
+                                        <option value="" disabled>Select from Pool</option>
+                                        {pooledFonts.map((f, i) => (
+                                            <option key={`p-${i}`} value={f.name}>
+                                                {f.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-500">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                    </div>
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        /* Selected State */
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 border border-indigo-100 rounded-lg text-indigo-700 animate-in fade-in zoom-in-95 duration-200">
+                                <span className="text-xs font-bold truncate max-w-[200px]" title={file?.name}>
+                                    {file?.name}
+                                </span>
+                                <button
+                                    onClick={clearSelection}
+                                    className="text-indigo-400 hover:text-indigo-900 transition-colors ml-1"
+                                    title="Remove font"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -102,19 +123,37 @@ const LanguageSetupRow = ({ langId, state, onChange, pooledFonts = [] }) => {
     );
 };
 
-const LanguageSetupModal = ({ languageIds, onConfirm, onCancel }) => {
-    const [pooledFonts, setPooledFonts] = useState([]);
+const LanguageSetupModal = ({ languageIds, primaryLanguages = [], onConfirm, onCancel, forcedPrimaryFont = null }) => {
+    const [pooledFonts, setPooledFonts] = useState(() => {
+        if (forcedPrimaryFont) {
+            return [forcedPrimaryFont.file];
+        }
+        return [];
+    });
+
     const [setupMap, setSetupMap] = useState(() => {
         const initial = {};
         languageIds.forEach(id => {
-            initial[id] = { type: 'inherit', file: null, poolRef: null };
+            // If primary, default to current/system (or forced if available? No, usually explicit).
+            // Actually, if forcedPrimaryFont exists, user probably dragged it in "Start with Fonts"
+            // So we might want to default the Primary Language to that font if it matches?
+            const isPrimary = primaryLanguages.includes(id);
+            if (isPrimary && forcedPrimaryFont) {
+                initial[id] = { type: 'pool', file: forcedPrimaryFont.file, poolRef: forcedPrimaryFont.file };
+            } else if (isPrimary) {
+                initial[id] = { type: 'current', file: null, poolRef: null };
+            } else {
+                initial[id] = { type: 'inherit', file: null, poolRef: null };
+            }
         });
         return initial;
     });
 
-    const [primarySelection, setPrimarySelection] = useState({ type: 'current', file: null, poolRef: null });
-    const primaryFileInputRef = useRef(null);
+    // New Global Fallback State
+    const [globalFallback, setGlobalFallback] = useState({ type: 'none', file: null, poolRef: null });
+
     const batchFileInputRef = useRef(null);
+    const globalFallbackInputRef = useRef(null);
 
     const handleBatchDrop = useCallback((e) => {
         e.preventDefault();
@@ -132,12 +171,6 @@ const LanguageSetupModal = ({ languageIds, onConfirm, onCancel }) => {
         }
     };
 
-    const handlePrimaryFileSelect = (e) => {
-        if (e.target.files?.[0]) {
-            setPrimarySelection({ type: 'upload', file: e.target.files[0], poolRef: null });
-        }
-    };
-
     const handleRowChange = (langId, newState) => {
         setSetupMap(prev => ({
             ...prev,
@@ -146,175 +179,175 @@ const LanguageSetupModal = ({ languageIds, onConfirm, onCancel }) => {
     };
 
     const handleConfirm = () => {
-        onConfirm(setupMap, pooledFonts, primarySelection);
+        // Derive primarySelection from the Primary Language's row
+        const primaryLangId = primaryLanguages[0] || languageIds[0];
+        const primaryState = setupMap[primaryLangId];
+
+        onConfirm(setupMap, pooledFonts, primaryState, globalFallback);
     };
 
-    const unassignedCount = pooledFonts.length - Object.values(setupMap).filter(s => s.type === 'pool').length - (primarySelection.type === 'pool' ? 1 : 0);
+    // Sort languages: Primary first, then others
+    const sortedLanguageIds = useMemo(() => {
+        return [...languageIds].sort((a, b) => {
+            const aPrimary = primaryLanguages.includes(a);
+            const bPrimary = primaryLanguages.includes(b);
+            if (aPrimary && !bPrimary) return -1;
+            if (!aPrimary && bPrimary) return 1;
+            return 0;
+        });
+    }, [languageIds, primaryLanguages]);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-white/20">
 
-                {/* Header */}
-                <div className="p-6 border-b border-gray-100 bg-white z-10">
-                    <h2 className="text-xl font-bold text-slate-800 mb-1">Configure Imported Languages</h2>
-                    <p className="text-sm text-slate-500">
-                        Setup fonts for {languageIds.length} new languages.
-                    </p>
+                {/* Modern Header with Pool Only */}
+                <div className="p-6 border-b border-slate-100 bg-white z-10 flex items-start justify-between">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800">Configure Languages</h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Setup fonts for <strong className="text-slate-700">{languageIds.length} languages</strong>.
+                        </p>
+                    </div>
+
+                    {/* Mini Drop Zone for Pool */}
+                    <div
+                        className="flex items-center gap-2 group cursor-pointer"
+                        title="Drag & Drop extra fonts here"
+                        onClick={() => batchFileInputRef.current?.click()}
+                        onDrop={handleBatchDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                    >
+                        <div className="px-3 py-1.5 bg-white border border-slate-200 rounded-md shadow-sm flex items-center gap-2 group-hover:border-indigo-300 group-hover:shadow transition-all">
+                            <span className="text-xs text-slate-500 font-medium group-hover:text-indigo-600">
+                                Batch Upload Fonts <span className="text-slate-900 font-bold group-hover:text-indigo-700">({pooledFonts.length})</span>
+                            </span>
+                            <span className="text-slate-300 text-sm group-hover:text-indigo-400">+</span>
+                        </div>
+                        <input
+                            type="file"
+                            ref={batchFileInputRef}
+                            multiple
+                            accept=".ttf,.otf,.woff,.woff2"
+                            className="hidden"
+                            onChange={handleBatchSelect}
+                        />
+                    </div>
                 </div>
 
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                {/* Scrollable Language List */}
+                <div className="flex-1 overflow-y-auto p-0 bg-white">
+                    <table className="w-full text-left text-sm">
+                        <thead className="bg-slate-50/80 sticky top-0 backdrop-blur-sm z-10 border-b border-slate-100">
+                            <tr>
+                                <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wider">Language</th>
+                                <th className="px-5 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wider text-right">Font Source</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {sortedLanguageIds.map(langId => (
+                                <LanguageSetupRow
+                                    key={langId}
+                                    langId={langId}
+                                    state={setupMap[langId]}
+                                    onChange={(s) => handleRowChange(langId, s)}
+                                    pooledFonts={pooledFonts}
+                                    isPrimaryLanguage={primaryLanguages.includes(langId)}
+                                />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
 
-                    {/* SECTION 1: BATCH UPLOAD */}
-                    <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="font-bold text-slate-700">1. Bulk Font Upload (Optional)</h3>
-                                <p className="text-xs text-slate-500 mt-1">
-                                    Upload a folder of fonts to create a pool. You can then assign them below.
-                                </p>
-                            </div>
-                            <span className="text-xs font-mono bg-white px-2 py-1 rounded border border-slate-200 text-slate-500">
-                                {pooledFonts.length} files in pool
-                            </span>
-                        </div>
-
-                        <div
-                            className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:border-indigo-400 hover:bg-white transition-colors cursor-pointer"
-                            onDrop={handleBatchDrop}
-                            onDragOver={(e) => e.preventDefault()}
-                            onClick={() => batchFileInputRef.current?.click()}
-                        >
-                            <p className="text-sm text-slate-600 mb-2">Drag & Drop font files here</p>
-                            <span className="text-xs font-bold text-indigo-600 hover:underline">
-                                or click to browse
-                            </span>
-                            <input
-                                type="file"
-                                ref={batchFileInputRef}
-                                multiple
-                                accept=".ttf,.otf,.woff,.woff2"
-                                className="hidden"
-                                onChange={handleBatchSelect}
-                            />
-                        </div>
-                    </div>
-
-                    {/* SECTION 2: PRIMARY FONT */}
-                    <div className="bg-indigo-50/50 rounded-xl p-5 border border-indigo-100">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="font-bold text-indigo-900">2. Primary Font (Base)</h3>
-                                <p className="text-xs text-indigo-600/80 mt-1">
-                                    The default font used when a language inherits settings.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                            <select
-                                className="flex-1 text-sm border-gray-300 rounded-lg shadow-sm focus:border-indigo-500 focus:ring-indigo-500 py-2.5"
-                                value={primarySelection.type === 'pool' && primarySelection.poolRef
-                                    ? `pool:${primarySelection.poolRef.name}`
-                                    : primarySelection.type}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === 'current') {
-                                        setPrimarySelection({ type: 'current', file: null, poolRef: null });
-                                    } else if (val === 'upload') {
-                                        primaryFileInputRef.current?.click();
-                                    } else if (val.startsWith('pool:')) {
-                                        const fname = val.split('pool:')[1];
-                                        const font = pooledFonts.find(f => f.name === fname);
-                                        if (font) {
-                                            setPrimarySelection({ type: 'pool', file: font, poolRef: font });
-                                        }
-                                    }
-                                }}
-                            >
-                                <option value="current">Keep Current / System Default</option>
-                                <option disabled>────── Pool ──────</option>
-                                {pooledFonts.map((f, i) => (
-                                    <option key={`p-${i}`} value={`pool:${f.name}`}>
-                                        Use Pool: {f.name}
-                                    </option>
-                                ))}
-                                <option disabled>────── Upload ──────</option>
-                                <option value="upload">Upload New File...</option>
-                            </select>
-
-                            {primarySelection.type === 'upload' && (
-                                <div className="text-xs text-slate-600 flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-gray-200">
-                                    <span className="truncate max-w-[200px]">{primarySelection.file?.name || 'No file selected'}</span>
-                                    <button onClick={() => primaryFileInputRef.current?.click()} className="text-indigo-600 font-bold hover:underline">
-                                        Change
-                                    </button>
-                                </div>
-                            )}
-                            <input
-                                type="file"
-                                ref={primaryFileInputRef}
-                                className="hidden"
-                                accept=".ttf,.otf,.woff,.woff2"
-                                onChange={handlePrimaryFileSelect}
-                            />
-                        </div>
-                    </div>
-
-                    {/* SECTION 3: LANGUAGE LIST */}
+                {/* Global Fallback Section */}
+                <div className="border-t border-slate-100 bg-slate-50/50 p-5 z-10 flex items-center justify-between">
                     <div>
-                        <div className="flex items-center justify-between mb-4 px-1">
-                            <div>
-                                <h3 className="font-bold text-slate-800">3. Language Assignments</h3>
-                                <p className="text-xs text-slate-500">
-                                    Configure font needed for each language.
-                                </p>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs font-medium text-slate-500">
-                                    {unassignedCount > 0
-                                        ? `${unassignedCount} fonts will be loaded as unassigned fallbacks`
-                                        : 'All pool fonts assigned'}
-                                </p>
-                            </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-800">Global Fallback Font</span>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded">Optional</span>
                         </div>
-
-                        <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                            <table className="w-full text-left text-sm">
-                                <thead className="bg-slate-50 border-b border-gray-200">
-                                    <tr>
-                                        <th className="px-5 py-3 font-semibold text-slate-600">Language</th>
-                                        <th className="px-5 py-3 font-semibold text-slate-600 w-[50%]">Font Assignment</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {languageIds.map(langId => (
-                                        <LanguageSetupRow
-                                            key={langId}
-                                            langId={langId}
-                                            state={setupMap[langId]}
-                                            onChange={(s) => handleRowChange(langId, s)}
-                                            pooledFonts={pooledFonts}
-                                        />
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
+                        <p className="text-xs text-slate-500 mt-1">Used when no other font supports the character.</p>
+                    </div>
+                    <div className="flex items-center justify-end gap-2">
+                        {globalFallback.type === 'none' ? (
+                            <>
+                                <button
+                                    onClick={() => {
+                                        globalFallbackInputRef.current?.click();
+                                    }}
+                                    className="px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-sm whitespace-nowrap"
+                                >
+                                    Upload Fallback
+                                </button>
+                                {pooledFonts.length > 0 && (
+                                    <div className="relative">
+                                        <select
+                                            className="appearance-none cursor-pointer px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-indigo-500 hover:text-indigo-600 transition-colors shadow-sm pr-6 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                            value=""
+                                            onChange={(e) => {
+                                                const fname = e.target.value;
+                                                const font = pooledFonts.find(f => f.name === fname);
+                                                if (font) {
+                                                    setGlobalFallback({ type: 'pool', file: font, poolRef: font });
+                                                }
+                                            }}
+                                        >
+                                            <option value="" disabled>Select from Pool</option>
+                                            {pooledFonts.map((f, i) => (
+                                                <option key={`gf-${i}`} value={f.name}>
+                                                    {f.name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-500">
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-200 border border-slate-300 rounded-lg text-slate-700 animate-in fade-in zoom-in-95 duration-200">
+                                <span className="text-xs font-bold truncate max-w-[200px]" title={globalFallback.file?.name}>
+                                    {globalFallback.file?.name}
+                                </span>
+                                <button
+                                    onClick={() => setGlobalFallback({ type: 'none', file: null, poolRef: null })}
+                                    className="text-slate-500 hover:text-slate-900 transition-colors ml-1"
+                                    title="Remove font"
+                                >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                        )}
+                        <input
+                            type="file"
+                            ref={globalFallbackInputRef}
+                            className="hidden"
+                            accept=".ttf,.otf,.woff,.woff2"
+                            onChange={(e) => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                    setGlobalFallback({
+                                        type: 'upload',
+                                        file: e.target.files[0],
+                                        poolRef: null
+                                    });
+                                }
+                            }}
+                        />
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div className="p-5 border-t border-gray-100 bg-slate-50 flex justify-end gap-3 z-10">
+                <div className="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3 z-10">
                     <button
                         onClick={onCancel}
-                        className="px-5 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-gray-200/50 rounded-lg transition-colors"
+                        className="px-5 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
                     >
                         Cancel
                     </button>
                     <button
                         onClick={handleConfirm}
-                        className="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2"
+                        className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm hover:shadow-md transition-all flex items-center gap-2"
                     >
                         <span>Confirm Setup</span>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>

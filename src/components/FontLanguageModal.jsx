@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from 'react';
+import { parseFontFile, createFontUrl } from '../services/FontLoader';
 import {
     DndContext,
     closestCenter,
@@ -13,33 +14,33 @@ import {
     sortableKeyboardCoordinates,
     verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useSortable } from '@dnd-kit/sortable';
+
 import { useTypo } from '../context/useTypo';
 import LanguageList from './LanguageList';
 import SortableFontRow from './SortableFontRow';
 
-const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignments = {} }) => {
+const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialMappings = {} }) => {
     const { languages } = useTypo();
     const [fonts, setFonts] = useState(() =>
         pendingFonts.map((f, i) => ({ ...f, id: `pending-${i}` }))
     );
-    const [assignments, setAssignments] = useState(() => {
+    const [mappings, setMappings] = useState(() => {
         const initial = {};
         pendingFonts.forEach(f => {
-            initial[f.file.name] = initialAssignments[f.file.name] || 'auto';
+            initial[f.file.name] = initialMappings[f.file.name] || 'auto';
         });
         return initial;
     });
 
-    // Sync assignments when initialAssignments changes (e.g. if config is parsed after mount)
+    // Sync mappings when initialMappings changes (e.g. if config is parsed after mount)
     React.useEffect(() => {
-        if (!initialAssignments || Object.keys(initialAssignments).length === 0) return;
+        if (!initialMappings || Object.keys(initialMappings).length === 0) return;
 
-        setAssignments(prev => {
+        setMappings(prev => {
             const next = { ...prev };
             let hasChanges = false;
             pendingFonts.forEach(f => {
-                const prefilled = initialAssignments[f.file.name];
+                const prefilled = initialMappings[f.file.name];
                 // Only overwrite if currently 'auto' (don't overwrite user choices) 
                 // OR if we assume this is the initialization phase.
                 // Given the use case (drop config + fonts), overwriting 'auto' is safe and desired.
@@ -50,7 +51,7 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
             });
             return hasChanges ? next : prev;
         });
-    }, [initialAssignments, pendingFonts]);
+    }, [initialMappings, pendingFonts]);
 
     const [view, setView] = useState('list'); // 'list' or 'picker'
     const [pickingForFont, setPickingForFont] = useState(null);
@@ -58,6 +59,61 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
 
     const scrollContainerRef = useRef(null);
     const scrollPositionRef = useRef(0);
+    const addFontInputRef = useRef(null);
+
+    const handleAdditionalFonts = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        // Get currently listed fonts (in modal) to check for duplicates
+        const currentFontNames = new Set(
+            fonts.map(f => (f.file ? f.file.name : f.fileName || f.name).toLowerCase())
+        );
+
+        const newFonts = [];
+        let duplicateCount = 0;
+
+        for (const file of files) {
+            const fileName = file.name.toLowerCase();
+            if (currentFontNames.has(fileName)) {
+                duplicateCount++;
+                continue;
+            }
+            try {
+                const { font, metadata } = await parseFontFile(file);
+                const url = createFontUrl(file);
+                // Create a pending font object structure matching FontUploader
+                newFonts.push({
+                    font,
+                    metadata,
+                    url,
+                    file,
+                    id: `pending-added-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`
+                });
+            } catch (err) {
+                console.error("Failed to parse added font", err);
+            }
+        }
+
+        if (duplicateCount > 0) {
+            alert(`Skipped ${duplicateCount} duplicate font(s).`);
+        }
+
+        if (newFonts.length > 0) {
+            setFonts(prev => [...prev, ...newFonts]);
+            // Default mapping for new fonts is 'auto'
+            setMappings(prev => {
+                const update = { ...prev };
+                newFonts.forEach(f => {
+                    update[f.file.name] = 'auto';
+                });
+                return update;
+            });
+        }
+
+        // Reset input
+        e.target.value = '';
+    };
 
     useLayoutEffect(() => {
         if (!scrollContainerRef.current) return;
@@ -101,13 +157,44 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
     const handleLanguageSelect = (langId) => {
         if (!pickingForFont) return;
 
-        setAssignments(prev => ({
-            ...prev,
-            [pickingForFont]: langId
-        }));
-        setView('list');
-        setPickingForFont(null);
-        setPickerSearchTerm('');
+        setMappings(prev => {
+            const current = prev[pickingForFont];
+            let newSelection;
+
+            if (current === 'auto') {
+                // If currently auto, selecting a language replaces it with [langId]
+                newSelection = [langId];
+            } else if (Array.isArray(current)) {
+                if (current.includes(langId)) {
+                    // Remove if exists
+                    newSelection = current.filter(id => id !== langId);
+                } else {
+                    // Add if not exists
+                    newSelection = [...current, langId];
+                }
+            } else {
+                // If string but not auto (legacy/single logic backup)
+                if (current === langId) newSelection = [];
+                else newSelection = [current, langId];
+            }
+
+            // If empty, revert to 'auto'? Or keep empty (No mapping)?
+            // Usually if I clear selection, I might mean "None" or "Auto".
+            // Let's assume if I explicitly uncheck everything, I might mean "None" or "Auto".
+            // For now, let's allow empty array meaning "Explicitly mapped to nothing" (effectively disabled for overrides?)
+            // Or should it revert to 'auto'?
+            // Providing an "Auto" option in the list effectively handles "Auto".
+            // If user unchecks everything, let's leave it as empty array.
+
+            return {
+                ...prev,
+                [pickingForFont]: newSelection
+            };
+        });
+        // Remove automatic return to list view for multi-select
+        // setView('list'); 
+        // setPickingForFont(null);
+        // setPickerSearchTerm('');
     };
 
     const handleOpenLanguagePicker = (fontId) => {
@@ -124,7 +211,7 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
     const handleConfirm = () => {
         onConfirm({
             orderedFonts: fonts,
-            assignments
+            mappings
         });
     };
 
@@ -146,12 +233,12 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
                         )}
                         <div className="flex-1">
                             <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                                {view === 'list' ? 'Fallback Order and Language Assignments' : 'Select Language'}
+                                {view === 'list' ? 'Fallback Order and Language Mappings' : 'Select Language'}
                             </h2>
                             <p className="text-sm text-slate-500 font-medium">
                                 {view === 'list'
-                                    ? 'Drag to reorder. Assign fonts to specific languages if needed.'
-                                    : <span>Assigning language for <strong>{pickingForFont}</strong></span>}
+                                    ? 'Drag to reorder. Map fonts to specific languages if needed.'
+                                    : <span>Mapping language for <strong>{pickingForFont}</strong></span>}
                             </p>
                         </div>
                     </div>
@@ -177,7 +264,7 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
                                         key={font.id}
                                         item={font}
                                         isPrimary={index === 0}
-                                        assignments={assignments}
+                                        mappings={mappings}
                                         onOpenLanguagePicker={handleOpenLanguagePicker}
                                         onSetPrimary={handleSetPrimary}
                                         languages={languages}
@@ -188,12 +275,12 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
                     ) : (
                         <div className="h-full flex flex-col">
                             <LanguageList
-                                selectedIds={assignments[pickingForFont]}
+                                selectedIds={mappings[pickingForFont]}
                                 onSelect={handleLanguageSelect}
                                 searchTerm={pickerSearchTerm}
                                 onSearchChange={setPickerSearchTerm}
-                                mode="single"
-                                showAuto={true}
+                                mode="multi"
+                                showAuto={false}
                             />
                         </div>
                     )}
@@ -209,19 +296,36 @@ const FontLanguageModal = ({ pendingFonts, onConfirm, onCancel, initialAssignmen
                             >
                                 Cancel
                             </button>
+                            <input
+                                type="file"
+                                ref={addFontInputRef}
+                                className="hidden"
+                                multiple
+                                accept=".ttf,.otf,.woff,.woff2"
+                                onChange={handleAdditionalFonts}
+                            />
+                            <button
+                                onClick={() => addFontInputRef.current?.click()}
+                                className="px-4 py-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-colors"
+                            >
+                                + Add Font
+                            </button>
                             <button
                                 onClick={handleConfirm}
                                 className="px-6 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all shadow-md shadow-indigo-100"
                             >
-                                Confirm Assignments
+                                Confirm Mappings
                             </button>
                         </>
                     ) : (
                         <button
-                            onClick={() => setView('list')}
-                            className="px-6 py-2 text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all"
+                            onClick={() => {
+                                setView('list');
+                                setPickerSearchTerm('');
+                            }}
+                            className="px-6 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-all shadow-md"
                         >
-                            Back to List
+                            Confirm Selection
                         </button>
                     )}
                 </div>

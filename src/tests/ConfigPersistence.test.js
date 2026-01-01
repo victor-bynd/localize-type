@@ -95,6 +95,13 @@ describe('ConfigService Persistence (Mega Test)', () => {
 
                     primaryFontOverrides: {
                         'fr-FR': 'font-primary-1'
+                    },
+
+                    // New Fields
+                    primaryLanguages: ['en-US', 'fr-FR'],
+                    configuredLanguages: ['en-US', 'ja-JP', 'fr-FR'],
+                    systemFallbackOverrides: {
+                        'de-DE': { weight: 700 }
                     }
                 }
             },
@@ -178,15 +185,19 @@ describe('ConfigService Persistence (Mega Test)', () => {
 
         expect(fontStyle.fallbackScaleOverrides['ja-JP']).toBe(120);
         expect(fontStyle.lineHeightOverrides['ja-JP']).toBe(1.8);
+        expect(fontStyle.systemFallbackOverrides['de-DE']).toEqual({ weight: 700 });
 
         // 6. Global Style Settings
         expect(fontStyle.baseFontSize).toBe(18);
         expect(fontStyle.fontScales).toEqual({ active: 110, fallback: 95 });
         expect(fontStyle.isFallbackLinked).toBe(false);
+        expect(fontStyle.primaryLanguages).toEqual(['en-US', 'fr-FR']);
+        expect(fontStyle.configuredLanguages).toEqual(['en-US', 'ja-JP', 'fr-FR']);
 
         // 7. Header Styles & View Settings
         expect(exportedData.headerStyles.h1.scale).toBe(4.5);
         expect(exportedData.headerOverrides.h1).toEqual({ scale: true });
+        expect(exportedData.headerFontStyleMap).toEqual({ h1: 'primary', h2: 'primary' });
 
         expect(exportedData.textOverrides['ja-JP']).toBe('こんにちは');
         expect(exportedData.visibleLanguageIds).toEqual(['en-US', 'ja-JP', 'ru-RU']);

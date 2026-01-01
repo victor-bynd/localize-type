@@ -111,7 +111,17 @@ export const ConfigService = {
 
         styles.forEach(styleId => {
             const style = cleanData.fontStyles[styleId];
-            if (!style || !style.fallbackFontOverrides) return;
+            if (!style) return;
+
+            // Migration: Move legacy missing colors to style state if not present
+            if (!style.missingColor && data.colors?.missing) {
+                style.missingColor = data.colors.missing;
+            }
+            if (!style.missingBgColor && data.colors?.missingBg) {
+                style.missingBgColor = data.colors.missingBg;
+            }
+
+            if (!style.fallbackFontOverrides) return;
 
             const existingFontIds = new Set((style.fonts || []).map(f => f.id));
             const validOverrides = {};

@@ -4,14 +4,14 @@ import SidebarHeaderConfig from './SidebarHeaderConfig';
 import SidebarLanguages from './SidebarLanguages';
 import SidebarFonts from './SidebarFonts';
 
-const SideBar = ({ sidebarMode, setSidebarMode, setPreviewMode, selectedGroup, onSelectGroup, onAddLanguage, highlitLanguageId, setHighlitLanguageId, onManageLanguages, ...props }) => {
+const SideBar = ({ sidebarMode, setSidebarMode, selectedGroup, onSelectGroup, onAddLanguage, highlitLanguageId, setHighlitLanguageId, onManageLanguages, searchQuery, setSearchQuery, ...props }) => {
     const { fontObject } = useTypo();
 
     if (!fontObject) return null;
 
     return (
         <div className={`
-            flex h-screen sticky top-0 bg-white z-0 border-gray-200 transition-all duration-300
+            flex h-screen sticky top-0 bg-white z-0 border-gray-200 transition-all duration-300 overflow-hidden
             ${sidebarMode === 'headers'
                 ? 'border-l shadow-[-4px_0_24px_-4px_rgba(0,0,0,0.05)]'
                 : 'border-r shadow-[4px_0_24px_-4px_rgba(0,0,0,0.05)]'
@@ -28,8 +28,15 @@ const SideBar = ({ sidebarMode, setSidebarMode, setPreviewMode, selectedGroup, o
                         onManageLanguages={onManageLanguages}
                         onOpenSettings={props.onOpenSettings}
                         onResetApp={props.onResetApp}
+                        searchQuery={searchQuery}
+                        setSearchQuery={setSearchQuery}
+                        expandedGroups={props.expandedGroups}
+                        setExpandedGroups={props.setExpandedGroups}
                     />
-                    <SidebarFonts />
+                    <SidebarFonts
+                        selectedGroup={selectedGroup}
+                        setHighlitLanguageId={setHighlitLanguageId}
+                    />
                 </>
             )}
 

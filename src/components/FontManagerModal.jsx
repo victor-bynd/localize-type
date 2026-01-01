@@ -30,13 +30,17 @@ const FontManagerModal = ({ onClose }) => {
         fallbackFontOverrides,
         primaryFontOverrides,
         updateFallbackFontOverride,
-        addLanguageSpecificPrimaryFont
+        addLanguageSpecificPrimaryFont,
+        toggleFontGlobalStatus,
+        normalizeFontName,
+        assignFontToMultipleLanguages
     } = useTypo();
 
     const [activeId, setActiveId] = useState(null);
     const [view, setView] = useState('list'); // 'list' or 'picker'
     const [pickingForFontId, setPickingForFontId] = useState(null);
     const [pickerSearchTerm, setPickerSearchTerm] = useState('');
+    const [searchTerm, setSearchTerm] = useState('');
 
     const scrollContainerRef = useRef(null);
     const scrollPositionRef = useRef(0);
@@ -64,36 +68,99 @@ const FontManagerModal = ({ onClose }) => {
         })
     );
 
-    // Compute Targets map: fontId -> langId (just for visualization component compatibility)
-    // But SortableFontRow expects a map of overrides? 
-    // Actually, we need to reverse match: which language is using this font as an override?
-    const Targets = useMemo(() => {
+    // Filter out language-specific clones if a global version exists
+    const visibleFonts = useMemo(() => {
+        const globalFonts = fonts.filter(f => !f.isLangSpecific && !f.isPrimaryOverride);
+        const specificFonts = fonts.filter(f => f.isLangSpecific || f.isPrimaryOverride);
+
+        // Create a set of global font identifiers for deduplication
+        // We use fileName (most precise for uploads) and normalized name
+        const globalIdentifiers = new Set();
+        globalFonts.forEach(f => {
+            if (f.fileName) globalIdentifiers.add(f.fileName);
+            if (f.name) globalIdentifiers.add(normalizeFontName(f.name));
+        });
+
+        const visitedSpecifics = new Set();
+
+        const uniqueSpecificFonts = specificFonts.filter(f => {
+            // If strictly mapped (no global equivalent), show it.
+            // If it has a global equivalent, HIDE it (it's a duplicate entry).
+            if (f.fileName && globalIdentifiers.has(f.fileName)) return false;
+            if (f.name && globalIdentifiers.has(normalizeFontName(f.name))) return false;
+
+            // Deduplicate within specific list to prevent multiple rows for the same font
+            // Use filename or normalized name as unique key
+            const uniqueKey = f.fileName || normalizeFontName(f.name);
+            if (visitedSpecifics.has(uniqueKey)) return false;
+
+            visitedSpecifics.add(uniqueKey);
+            return true;
+        });
+
+        // Combine: Global first, then orphan specific fonts
+        let combined = [...globalFonts, ...uniqueSpecificFonts];
+
+        if (searchTerm.trim()) {
+            const lower = searchTerm.toLowerCase();
+            combined = combined.filter(f =>
+                (f.name && f.name.toLowerCase().includes(lower)) ||
+                (f.fileName && f.fileName.toLowerCase().includes(lower))
+            );
+        }
+
+        return combined;
+    }, [fonts, normalizeFontName, searchTerm]);
+
+    // Compute Mappings map: fontId/Name/FileName -> [langId, ...]
+    const Mappings = useMemo(() => {
         const map = {};
+
+        const registerMapping = (fontId, langId) => {
+            // Ensure map entry is array
+            if (!map[fontId]) map[fontId] = [];
+            if (!map[fontId].includes(langId)) map[fontId].push(langId);
+
+            // Also map the Name and FileName to handle hidden duplicates/clones.
+            // This ensures that if we hide a "Clone" because a "Global" exists, 
+            // the "Global" row will still see the mapping via Name match.
+            const font = fonts.find(f => f.id === fontId);
+            if (font) {
+                if (font.fileName) {
+                    if (!map[font.fileName]) map[font.fileName] = [];
+                    if (!map[font.fileName].includes(langId)) map[font.fileName].push(langId);
+                }
+                if (font.name) {
+                    if (!map[font.name]) map[font.name] = [];
+                    if (!map[font.name].includes(langId)) map[font.name].push(langId);
+                }
+                const normalized = normalizeFontName(font.name);
+                if (normalized) {
+                    if (!map[normalized]) map[normalized] = [];
+                    if (!map[normalized].includes(langId)) map[normalized].push(langId);
+                }
+            }
+        };
+
         // Check fallback overrides
         Object.entries(fallbackFontOverrides || {}).forEach(([langId, overrides]) => {
             if (typeof overrides === 'object') {
                 Object.entries(overrides).forEach(([baseFontId, overrideFontId]) => {
-                    // This is complex: fallbackFontOverrides maps langId -> { baseFontId: overrideFontId }
-                    // If we want to show "Assigned to Japan", we need to know if this font IS the override.
-                    // But the UI pattern in Initial Import implies a simpler "This font is intended for Language X"
-                    // For now, let's look for "Global Fallback" logic vs "Language Specific".
-                    // If a font is purely a language specific font, it might be in the list but not global fallback?
-                    // Let's simplified assumption: If this font ID is used as an override value for any language, map it.
-                    if (overrideFontId) map[overrideFontId] = langId;
+                    if (overrideFontId) registerMapping(overrideFontId, langId);
+                    if (baseFontId) registerMapping(baseFontId, langId);
                 });
             } else if (typeof overrides === 'string') {
-                // Legacy or simple map
-                map[overrides] = langId;
+                registerMapping(overrides, langId);
             }
         });
 
         // Check primary overrides
         Object.entries(primaryFontOverrides || {}).forEach(([langId, fontId]) => {
-            if (fontId) map[fontId] = langId;
+            if (fontId) registerMapping(fontId, langId);
         });
 
         return map;
-    }, [fallbackFontOverrides, primaryFontOverrides]);
+    }, [fallbackFontOverrides, primaryFontOverrides, fonts, normalizeFontName]);
 
     const handleDragStart = (event) => {
         setActiveId(event.active.id);
@@ -132,12 +199,26 @@ const FontManagerModal = ({ onClose }) => {
     };
 
     const handleRemove = (fontId) => {
-        if (fonts.length <= 1) {
+        const fontToRemove = fonts.find(f => f.id === fontId);
+        if (!fontToRemove) return;
+
+        // Identify all instances (clones/mapped versions) of this font to ensure clean removal
+        const fontsToRemove = fonts.filter(f => {
+            if (f.id === fontId) return true;
+            // Match by filename for uploaded fonts
+            if (fontToRemove.fileName && f.fileName === fontToRemove.fileName) return true;
+            // Match by normalized name for system fonts
+            if (!fontToRemove.fileName && !f.fileName && normalizeFontName(f.name) === normalizeFontName(fontToRemove.name)) return true;
+            return false;
+        });
+
+        if (fonts.length - fontsToRemove.length < 1) {
             alert("You cannot remove the last font.");
             return;
         }
+
         if (confirm("Are you sure you want to remove this font?")) {
-            removeFallbackFont(fontId);
+            fontsToRemove.forEach(f => removeFallbackFont(f.id));
         }
     };
 
@@ -164,23 +245,21 @@ const FontManagerModal = ({ onClose }) => {
     const handleLanguageSelect = (langId) => {
         if (!pickingForFontId) return;
 
-        // Logic: 
-        // 1. Is this intended to be a Primary Override? 
-        //    If the user clicks "Assign Language", they likely want this font to be used for that language.
-        //    But as Primary? or Fallback?
-        //    Deciding: If this font is a "Web Font", it could be Primary.
-        //    Let's assume they want to use it as a Primary Override for that language for now, 
-        //    OR we can treat it as a Fallback Override if it's lower in the stack.
-        //    Actually, "Assign Language" in the import flow usually meant "This font is for Japanese", so it should be used when Japanese is present.
-        //    
-        //    Let's implement: Add as Primary Override for that language.
-        //    Why? because that's the most common "Language Specific Font" usecase (e.g. Noto Sans JP).
+        // Multi-select Logic: Toggle ID
+        const currentSelected = Mappings[pickingForFontId] || [];
+        let newSelected;
+        if (currentSelected.includes(langId)) {
+            newSelected = currentSelected.filter(id => id !== langId);
+        } else {
+            newSelected = [...currentSelected, langId];
+        }
 
-        addLanguageSpecificPrimaryFont(langId, pickingForFontId);
+        assignFontToMultipleLanguages(pickingForFontId, newSelected);
 
-        setView('list');
-        setPickingForFontId(null);
-        setPickerSearchTerm('');
+        // Don't close view, keep picker open for multi-select
+        // setView('list');
+        // setPickingForFontId(null);
+        // setPickerSearchTerm('');
     };
 
     const modalContent = (
@@ -189,7 +268,7 @@ const FontManagerModal = ({ onClose }) => {
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                     <div className="flex items-center gap-3">
-                        {view === 'picker' && (
+                        {(view === 'picker' || view === 'add') && (
                             <button
                                 onClick={() => setView('list')}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -201,10 +280,14 @@ const FontManagerModal = ({ onClose }) => {
                         )}
                         <div>
                             <h2 className="text-xl font-bold text-gray-900 line-clamp-1">
-                                {view === 'list' ? 'Manage Fonts' : `Assign Language for ${pickingFont?.name || 'Font'}`}
+                                {view === 'list' && 'Manage Fonts'}
+                                {view === 'picker' && `Map Language for ${pickingFont?.name || 'Font'}`}
+                                {view === 'add' && 'Add New Font'}
                             </h2>
                             <p className="text-sm text-gray-500">
-                                {view === 'list' ? 'Add, remove, and reorder your font stack' : `Select a language to use ${pickingFont?.name || 'this font'} as an override`}
+                                {view === 'list' && 'Add, remove, and reorder your font stack'}
+                                {view === 'picker' && `Select a language to use ${pickingFont?.name || 'this font'} as an override`}
+                                {view === 'add' && 'Upload a file or add a system font name'}
                             </p>
                         </div>
                     </div>
@@ -227,6 +310,20 @@ const FontManagerModal = ({ onClose }) => {
                 >
                     {view === 'list' ? (
                         <>
+                            {/* Search Input */}
+                            <div className="mb-2 relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search fonts..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium text-slate-700 placeholder:text-slate-400"
+                                />
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4">
+                                    <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+
                             {/* Font List */}
                             <div className="space-y-4">
                                 <DndContext
@@ -236,22 +333,89 @@ const FontManagerModal = ({ onClose }) => {
                                     onDragEnd={handleDragEnd}
                                 >
                                     <SortableContext
-                                        items={fonts.map(f => f.id)}
+                                        items={visibleFonts.map(f => f.id)}
                                         strategy={verticalListSortingStrategy}
                                     >
                                         <div className="space-y-2">
-                                            {fonts.map((font, index) => (
-                                                <SortableFontRow
-                                                    key={font.id}
-                                                    item={font}
-                                                    isPrimary={index === 0}
-                                                    onRemove={handleRemove}
-                                                    onSetPrimary={handleSetPrimary}
-                                                    onOpenLanguagePicker={handleOpenLanguagePicker}
-                                                    assignments={Targets}
-                                                    languages={languages || []}
-                                                />
-                                            ))}
+                                            {visibleFonts.length > 0 ? (
+                                                <>
+                                                    {/* PRIMARY SECTION */}
+                                                    {visibleFonts.some(f => fonts.length > 0 && f.id === fonts[0].id) && (
+                                                        <>
+                                                            <div className="px-1 pt-2 pb-1">
+                                                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Primary</h3>
+                                                            </div>
+                                                            {visibleFonts
+                                                                .filter(f => fonts.length > 0 && f.id === fonts[0].id)
+                                                                .map((font) => (
+                                                                    <SortableFontRow
+                                                                        key={font.id}
+                                                                        item={font}
+                                                                        isPrimary={true}
+                                                                        onRemove={handleRemove}
+                                                                        onSetPrimary={handleSetPrimary}
+                                                                        onOpenLanguagePicker={handleOpenLanguagePicker}
+                                                                        onToggleGlobal={toggleFontGlobalStatus}
+                                                                        mappings={Mappings}
+                                                                        languages={languages || []}
+                                                                    />
+                                                                ))}
+                                                        </>
+                                                    )}
+
+                                                    {/* GLOBAL FALLBACKS SECTION: Global fonts that are NOT the primary */}
+                                                    {visibleFonts.some(f => !f.isLangSpecific && !f.isPrimaryOverride && (fonts.length === 0 || f.id !== fonts[0].id)) && (
+                                                        <>
+                                                            <div className="px-1 pt-4 pb-1">
+                                                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Global Fallbacks</h3>
+                                                            </div>
+                                                            {visibleFonts
+                                                                .filter(f => !f.isLangSpecific && !f.isPrimaryOverride && (fonts.length === 0 || f.id !== fonts[0].id))
+                                                                .map((font) => (
+                                                                    <SortableFontRow
+                                                                        key={font.id}
+                                                                        item={font}
+                                                                        isPrimary={false}
+                                                                        onRemove={handleRemove}
+                                                                        onSetPrimary={handleSetPrimary}
+                                                                        onOpenLanguagePicker={handleOpenLanguagePicker}
+                                                                        onToggleGlobal={toggleFontGlobalStatus}
+                                                                        mappings={Mappings}
+                                                                        languages={languages || []}
+                                                                    />
+                                                                ))}
+                                                        </>
+                                                    )}
+
+                                                    {/* MAPPED SECTION: Contains items that ARE isLangSpecific/isPrimaryOverride */}
+                                                    {visibleFonts.some(f => f.isLangSpecific || f.isPrimaryOverride) && (
+                                                        <>
+                                                            <div className="px-1 pt-4 pb-1">
+                                                                <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Mapped</h3>
+                                                            </div>
+                                                            {visibleFonts
+                                                                .filter(f => f.isLangSpecific || f.isPrimaryOverride)
+                                                                .map((font) => (
+                                                                    <SortableFontRow
+                                                                        key={font.id}
+                                                                        item={font}
+                                                                        isPrimary={false} // Mapped fonts are never main Primary in ui sense
+                                                                        onRemove={handleRemove}
+                                                                        onSetPrimary={handleSetPrimary}
+                                                                        onOpenLanguagePicker={handleOpenLanguagePicker}
+                                                                        onToggleGlobal={toggleFontGlobalStatus}
+                                                                        mappings={Mappings}
+                                                                        languages={languages || []}
+                                                                    />
+                                                                ))}
+                                                        </>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="text-center py-8 text-slate-400 text-sm italic">
+                                                    No fonts found matching "{searchTerm}"
+                                                </div>
+                                            )}
                                         </div>
                                     </SortableContext>
                                     <DragOverlay>
@@ -265,19 +429,8 @@ const FontManagerModal = ({ onClose }) => {
                                     </DragOverlay>
                                 </DndContext>
                             </div>
-
-                            <div className="border-t border-gray-100 pt-6">
-                                <div className="mb-3">
-                                    <h3 className="text-sm font-bold text-gray-900">Add New Font</h3>
-                                    <p className="text-xs text-gray-500">Upload a file or add a system font name</p>
-                                </div>
-                                <FallbackFontAdder
-                                    onClose={() => { }}
-                                    onAdd={() => { }}
-                                />
-                            </div>
                         </>
-                    ) : (
+                    ) : view === 'picker' ? (
                         <div className="h-full flex flex-col">
                             <div className="mb-4 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between shadow-sm">
                                 <div className="flex items-center gap-3">
@@ -287,28 +440,44 @@ const FontManagerModal = ({ onClose }) => {
                                         </svg>
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Assigning Language To</div>
+                                        <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Mapping Language To</div>
                                         <div className="text-sm font-bold text-slate-800">{pickingFont?.name}</div>
                                     </div>
                                 </div>
                                 <div className="hidden sm:block text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-md uppercase tracking-tight">
-                                    Single Select
+                                    Multi-Select
                                 </div>
                             </div>
                             <LanguageList
-                                selectedIds={Targets[pickingForFontId]}
+                                selectedIds={Mappings[pickingForFontId]}
                                 onSelect={handleLanguageSelect}
                                 searchTerm={pickerSearchTerm}
                                 onSearchChange={setPickerSearchTerm}
-                                mode="single"
+                                mode="multi"
                                 showAuto={false}
                             />
                         </div>
-                    )}
+                    ) : view === 'add' ? (
+                        <div className="h-full flex flex-col">
+                            <FallbackFontAdder
+                                onClose={() => setView('list')}
+                                onAdd={() => setView('list')}
+                            />
+                        </div>
+                    ) : null}
                 </div>
 
                 {view === 'list' && (
-                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-end">
+                    <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <button
+                            onClick={() => setView('add')}
+                            className="flex items-center gap-2 px-3 py-2 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-sm font-bold"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
+                            </svg>
+                            Add New Font
+                        </button>
                         <button
                             onClick={onClose}
                             className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm transition-colors text-sm"

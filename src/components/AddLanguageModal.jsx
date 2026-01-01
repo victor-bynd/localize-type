@@ -89,7 +89,7 @@ const AddLanguageModal = ({ onClose, onConfirm, configuredLanguages = [], filter
     }));
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[100] p-4" onClick={onClose}>
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mt-12 overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-2 duration-200"
                 onClick={(e) => e.stopPropagation()}
@@ -255,7 +255,7 @@ const AddLanguageModal = ({ onClose, onConfirm, configuredLanguages = [], filter
 
             {/* Nested Font Picker */}
             {showFontPicker && (
-                <div className="absolute inset-0 z-[60]">
+                <div className="absolute inset-0 z-[110]">
                     <FontSelectionModal
                         onClose={() => setShowFontPicker(false)}
                         onSelect={handleFontSelect}

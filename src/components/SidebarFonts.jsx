@@ -5,7 +5,7 @@ import FontCards from './FontCards';
 import OverridesManager from './OverridesManager';
 
 
-const SidebarFonts = () => {
+const SidebarFonts = ({ selectedGroup, setHighlitLanguageId }) => {
     const { activeConfigTab } = useTypo();
     const activeTab = activeConfigTab;
     const [showFontManager, setShowFontManager] = useState(false);
@@ -18,7 +18,7 @@ const SidebarFonts = () => {
                 </div>
                 <button
                     onClick={() => setShowFontManager(true)}
-                    className="w-5 h-5 flex items-center justify-center rounded-md bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                    className="w-7 h-7 flex items-center justify-center rounded-md bg-slate-100 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3">
                         <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
@@ -29,6 +29,8 @@ const SidebarFonts = () => {
             {/* FontCards */}
             <FontCards
                 activeTab={activeTab}
+                selectedGroup={selectedGroup}
+                setHighlitLanguageId={setHighlitLanguageId}
                 readOnly={activeTab !== 'ALL' && activeTab !== 'primary'}
             />
 

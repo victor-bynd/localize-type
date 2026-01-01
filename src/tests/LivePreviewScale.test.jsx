@@ -47,7 +47,7 @@ const TestSetup = ({ onReady }) => {
 const enLang = {
     id: 'en-US',
     name: 'English',
-    pangram: 'The quick brown fox'
+    sampleSentence: 'The quick brown fox'
 };
 
 const HelperComponent = ({ onContext }) => {
@@ -104,11 +104,11 @@ describe('Live Preview Scale Double Application', () => {
             capturedContext.updateFallbackFontOverride(fallback.id, 'scale', 50); // 50%
         });
 
-        // 3. Inspect the fallback char 'x' (from pangram 'The quick brown fox')
+        // 3. Inspect the fallback char 'x' (from sampleSentence 'The quick brown fox')
         // 'x' is missing in primary (defined above), so it uses fallback.
 
         // Find elements. LanguageCard renders spans.
-        // The pangram is 'The quick brown fox'. 'x' is the last char.
+        // The sampleSentence is 'The quick brown fox'. 'x' is the last char.
         // We can look for the text 'x'.
         const xSpan = screen.getByText('x');
 

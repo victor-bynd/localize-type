@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
 
 const FontSelectionModal = ({ onClose, onSelect, currentFontId, fontOptions, title = "Select Font" }) => {
@@ -36,8 +37,8 @@ const FontSelectionModal = ({ onClose, onSelect, currentFontId, fontOptions, tit
 
     const isSelected = (id) => currentFontId === id;
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4" onClick={onClose}>
+    return createPortal(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={onClose}>
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200"
                 onClick={(e) => e.stopPropagation()}
@@ -178,7 +179,8 @@ const FontSelectionModal = ({ onClose, onSelect, currentFontId, fontOptions, tit
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

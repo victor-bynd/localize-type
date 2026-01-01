@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { TypoProvider } from './context/TypoContext';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTypo } from './context/useTypo';
-import FontUploader from './components/FontUploader';
+import LandingPage from './components/LandingPage';
 import SideBar from './components/SideBar';
 import LanguageCard from './components/LanguageCard';
 import LanguageSelectorModal from './components/LanguageSelectorModal';
@@ -15,11 +15,13 @@ import FontLanguageModal from './components/FontLanguageModal';
 import ConfigActionsModal from './components/ConfigActionsModal';
 import { parseFontFile, createFontUrl } from './services/FontLoader';
 import { useConfigImport } from './hooks/useConfigImport';
-import { TsExportService } from './services/TsExportService';
 import { useFontFaceStyles } from './hooks/useFontFaceStyles';
+
 import { getLanguageGroup } from './utils/languageUtils';
 import { PersistenceService } from './services/PersistenceService';
 import ResetConfirmModal from './components/ResetConfirmModal';
+import ResetLoadingScreen from './components/ResetLoadingScreen';
+import LoadingScreen from './components/LoadingScreen';
 
 const MainContent = ({
   sidebarMode,
@@ -34,7 +36,9 @@ const MainContent = ({
   highlitLanguageId,
   setHighlitLanguageId,
   activeConfigModal,
-  setActiveConfigModal
+  setActiveConfigModal,
+  searchQuery,
+  expandedGroups // New Prop
 }) => {
   const {
     fontObject,
@@ -46,9 +50,9 @@ const MainContent = ({
     fallbackFontOverrides,
     addConfiguredLanguage,
     addLanguageSpecificPrimaryFontFromId,
-    // isLanguageTargeted - UNUSED
+    // isLanguageMapped - UNUSED
     supportedLanguages, // New export
-    targetedLanguageIds,
+    mappedLanguageIds,
     languages,
     configuredLanguages,
     primaryLanguages, // New
@@ -62,32 +66,90 @@ const MainContent = ({
     toggleBrowserGuides,
 
     setActiveConfigTab,
-    activeConfigTab
+    activeConfigTab,
+    resetApp,
+    isSessionLoading
   } = useTypo();
 
   const visibleLanguagesList = (() => {
-    if (selectedGroup === 'ALL_TARGETED') {
-      return languages.filter(l =>
-        targetedLanguageIds.includes(l.id) ||
+    // 1. Base List: strict Configured Order
+    const baseList = configuredLanguages
+      .map(id => supportedLanguages.find(l => l.id === id))
+      .filter(Boolean);
+
+    // 2. Sort by Primary (matches Sidebar)
+    const primarySorted = [...baseList].sort((a, b) => {
+      const aIsPrimary = primaryLanguages.includes(a.id) || (primaryLanguages.length === 0 && a.id === 'en-US');
+      const bIsPrimary = primaryLanguages.includes(b.id) || (primaryLanguages.length === 0 && b.id === 'en-US');
+      if (aIsPrimary && !bIsPrimary) return -1;
+      if (!aIsPrimary && bIsPrimary) return 1;
+      return 0;
+    });
+
+    // 3. Group Flattening (matches Sidebar visual structure)
+    // Sidebar renders groups in discovery order, and items within groups.
+    const groups = {};
+    const groupOrder = [];
+
+    primarySorted.forEach(lang => {
+      const g = getLanguageGroup(lang);
+      if (!groups[g]) {
+        groups[g] = [];
+        groupOrder.push(g);
+      }
+      groups[g].push(lang);
+    });
+
+    const sidebarOrderedList = groupOrder.flatMap(g => groups[g]);
+
+    // 4. Filtering
+    if (searchQuery) {
+      const lowerQuery = searchQuery.toLowerCase();
+      return sidebarOrderedList.filter(l => l.name.toLowerCase().includes(lowerQuery));
+    }
+    if (selectedGroup === 'MAPPED') {
+      return sidebarOrderedList.filter(l =>
+        mappedLanguageIds.includes(l.id) ||
         primaryLanguages.includes(l.id) ||
         (primaryLanguages.length === 0 && l.id === 'en-US')
       );
     }
-    if (selectedGroup === 'ALL') {
-      return supportedLanguages;
-    }
-    const visible = supportedLanguages.filter(lang =>
-      getLanguageGroup(lang) === selectedGroup || primaryLanguages.includes(lang.id)
-    );
-    return Array.from(new Set(visible.map(l => l.id)))
-      .map(id => visible.find(l => l.id === id));
+    // Specific Group (Sidebar Order is preserved naturally within the group)
+    const visible = sidebarOrderedList.filter(lang => {
+      // Check if group is collapsed - default to expanded (true) if undefined
+      const group = getLanguageGroup(lang);
+      const isGroupExpanded = expandedGroups[group] ?? true;
+
+      // If search is active, we ignore collapse state (optional, but usually better UX)
+      // If specific group selected, we ignore collapse state as user explicitly navigated there
+      // IF 'ALL', 'MAPPED', 'UNMAPPED' -> we respect collapse state
+      const shouldCheckCollapse = !searchQuery && ['ALL', 'MAPPED', 'UNMAPPED'].includes(selectedGroup);
+      if (shouldCheckCollapse && !isGroupExpanded) return false;
+
+      if (selectedGroup === 'ALL') return true;
+      if (selectedGroup === 'MAPPED') {
+        const isPrimary = primaryLanguages.includes(lang.id) || (primaryLanguages.length === 0 && lang.id === 'en-US');
+        const isMapped = mappedLanguageIds.includes(lang.id);
+        return isMapped || isPrimary;
+      }
+
+      if (selectedGroup === 'UNMAPPED') {
+        const isPrimary = primaryLanguages.includes(lang.id) || (primaryLanguages.length === 0 && lang.id === 'en-US');
+        const isMapped = mappedLanguageIds.includes(lang.id);
+        return !isPrimary && !isMapped;
+      }
+
+      return group === selectedGroup;
+    });
+
+    return visible;
   })();
 
   const visibleCount = visibleLanguagesList.length;
   const totalCount = supportedLanguages.length;
   const isFiltered = visibleCount < totalCount;
 
-  const { importConfig, missingFonts, existingFiles, resolveMissingFonts, cancelImport, parsedAssignments } = useConfigImport();
+  const { importConfig, missingFonts, existingFiles, resolveMissingFonts, cancelImport, parsedMappings } = useConfigImport();
   // Removed local showLanguageSelector state
   const [showListSettings, setShowListSettings] = useState(false);
   const [pendingFonts, setPendingFonts] = useState([]);
@@ -107,6 +169,33 @@ const MainContent = ({
       }
     }
   }, [activeConfigTab, highlitLanguageId, setHighlitLanguageId, primaryLanguages]);
+
+  // Centralized Scroll Logic
+  useEffect(() => {
+    // If we switched to ALL, maybe scroll to top or just do nothing?
+    // User expectation: clicking 'ALL' usually resets view.
+    // However, if we just stay put, that's also fine. 
+    // Let's scroll to top if ALL is selected to reset context.
+    // if (activeConfigTab === 'ALL') {
+    //   window.scrollTo({ top: 0, behavior: 'smooth' });
+    //   return;
+    // }
+
+    if (activeConfigTab === 'ALL') return;
+
+    const primaryLangId = primaryLanguages[0] || 'en-US';
+    const targetId = activeConfigTab === 'primary' ? primaryLangId : activeConfigTab;
+
+    // Small delay to ensure render (e.g. if switching groups simultaneously)
+    const timeoutId = setTimeout(() => {
+      const element = document.getElementById(`language-card-${targetId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+
+    return () => clearTimeout(timeoutId);
+  }, [activeConfigTab, primaryLanguages]);
 
   const { getExportConfiguration, addLanguageSpecificFallbackFont, loadFont } = useTypo();
 
@@ -133,25 +222,7 @@ const MainContent = ({
     URL.revokeObjectURL(url);
   };
 
-  const handleTsExport = () => {
-    // fontStyles, headerStyles, primaryFontOverrides, fallbackFontOverrides are available in scope
-    const tsContent = TsExportService.generateTsContent({
-      fontStyles,
-      headerStyles,
-      primaryFontOverrides,
-      fallbackFontOverrides
-    });
 
-    const blob = new Blob([tsContent], { type: 'text/typescript' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `typography.types.ts`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
 
 
 
@@ -188,7 +259,7 @@ const MainContent = ({
     }
   };
 
-  const handleAssignmentsConfirm = async ({ assignments, orderedFonts }) => {
+  const handleMappingsConfirm = async ({ mappings, orderedFonts }) => {
     // First restore the main config
     await resolveMissingFonts(pendingFileMap);
 
@@ -208,7 +279,7 @@ const MainContent = ({
     orderedFonts.forEach((item, index) => {
       if (index === 0) return; // Skip primary
 
-      const target = assignments[item.file.name];
+      const target = mappings[item.file.name];
       if (target !== 'auto') {
         addLanguageSpecificFallbackFont(
           item.font,
@@ -291,17 +362,13 @@ const MainContent = ({
     <div className="flex-1 bg-slate-50 min-h-screen relative">
       <style>{fontFaceStyles}</style>
 
-      {!fontObject ? (
-        <div className="h-screen flex flex-col items-center justify-center p-4">
-          <div className="max-w-xl w-full">
-            <h1 className="text-4xl font-bold text-center mb-2 text-gray-800">Fallback Styles</h1>
-            <p className="text-center text-gray-500 mb-8">Stress-test fallback fonts for beautiful localized typography.</p>
-            <FontUploader importConfig={importConfig} />
-          </div>
-        </div>
+      {isSessionLoading ? (
+        <LoadingScreen />
+      ) : (!fontObject && (configuredLanguages.length === 0 || (fontStyles?.primary?.fonts?.[0]?.name))) ? (
+        <LandingPage importConfig={importConfig} />
       ) : (
         <div
-          className="pt-4 px-8 md:px-10 min-h-screen cursor-default"
+          className="pt-4 px-8 md:px-10 pb-32 min-h-screen cursor-default"
           onClick={() => {
             setActiveConfigTab('ALL');
             if (setHighlitLanguageId) setHighlitLanguageId(null);
@@ -309,78 +376,75 @@ const MainContent = ({
         >
           <div
             ref={toolbarRef}
-            className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4 min-h-[42px]"
+            className="flex flex-col md:flex-row md:items-center justify-between mb-2 gap-4 min-h-[34px]"
+            onClick={(e) => e.stopPropagation()}
           >
             {/* LEFT: Live Demo Title */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-black text-slate-800 uppercase tracking-widest whitespace-nowrap">
                 TYPE DEMO
               </span>
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <span>{visibleCount}</span>
-                {isFiltered && (
-                  <>
-                    <span className="opacity-50">/</span>
-                    <span className="opacity-70">{totalCount}</span>
-                  </>
-                )}
-                <span className="ml-0.5 opacity-50">Languages</span>
-              </div>
             </div>
 
             {/* RIGHT: Controls */}
             <div className={`flex items-center gap-2 transition-all duration-300 ${isToolbarVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              {/* Guides Dropdown */}
-              <div className="relative group">
+              {/* Inline Guide Toggles - Standard Controls Style */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] font-black text-slate-400 select-none uppercase tracking-widest mr-1.5 pt-0.5">
+                  GUIDES
+                </span>
+
                 <button
-                  className="bg-white border border-gray-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 px-3 py-2 rounded-lg text-xs font-semibold transition-colors flex items-center gap-2 h-[42px] shadow-sm"
+                  onClick={() => toggleAlignmentGuides()}
+                  className={`
+                  px-3 h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border
+                  ${showAlignmentGuides
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-1 ring-indigo-200/50'
+                      : 'bg-white text-slate-500 border-gray-200 hover:text-slate-700 hover:border-gray-300 hover:bg-slate-50'
+                    }
+                `}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-                    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path>
-                    <path d="m15 5 4 4"></path>
-                  </svg>
-                  <span className="font-bold tracking-wider text-[10px]">Guides</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 opacity-50">
-                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.24 4.5a.75.75 0 01-1.08 0l-4.24-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-                  </svg>
+                  TYPE GRID
                 </button>
 
-                {/* Guides Menu */}
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl origin-top-right invisible opacity-0 group-hover:visible group-hover:opacity-100 transition-all duration-200 z-50 p-1">
-                  <button
-                    onClick={() => toggleAlignmentGuides()}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${showAlignmentGuides ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                  >
-                    <span>Type Grid</span>
-                    {showAlignmentGuides && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>}
-                  </button>
-                  <button
-                    onClick={() => toggleBrowserGuides()}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${showBrowserGuides ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                  >
-                    <span>Browser Render</span>
-                    {showBrowserGuides && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>}
-                  </button>
-                  <button
-                    onClick={() => setShowFallbackColors(!showFallbackColors)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${showFallbackColors ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-600'}`}
-                  >
-                    <span>Fallback Colors</span>
-                    {showFallbackColors && <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" /></svg>}
-                  </button>
-                </div>
+                <button
+                  onClick={() => toggleBrowserGuides()}
+                  className={`
+                  px-3 h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border
+                  ${showBrowserGuides
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-1 ring-indigo-200/50'
+                      : 'bg-white text-slate-500 border-gray-200 hover:text-slate-700 hover:border-gray-300 hover:bg-slate-50'
+                    }
+                `}
+                >
+                  LINEBOX VIEW
+                </button>
+
+                <button
+                  onClick={() => setShowFallbackColors(!showFallbackColors)}
+                  className={`
+                  px-3 h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-200 border
+                  ${showFallbackColors
+                      ? 'bg-indigo-50 text-indigo-600 border-indigo-200 ring-1 ring-indigo-200/50'
+                      : 'bg-white text-slate-500 border-gray-200 hover:text-slate-700 hover:border-gray-300 hover:bg-slate-50'
+                    }
+                `}
+                >
+                  FALLBACK COLORS
+                </button>
               </div>
-              <div className="w-[42px] h-[42px] hidden sm:block shrink-0" aria-hidden="true" />
+              <div className="w-[34px] h-[34px] hidden sm:block shrink-0" aria-hidden="true" />
             </div>
           </div>
 
           {/* Fixed Settings Button - Moved here to escape opacity transition */}
           {sidebarMode !== 'headers' && (
-            <div className="fixed top-4 right-8 md:top-4 md:right-10 z-[100]" ref={listSettingsRef}>
+            <div className="fixed top-4 right-8 md:top-4 md:right-10 z-40" ref={listSettingsRef} onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setShowListSettings(!showListSettings)}
                 className={`
-                    p-2 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 w-[42px] h-[42px] shadow-sm
+                    p-2 rounded-lg border transition-all duration-200 flex items-center justify-center gap-2 w-[34px] h-[34px]
+                    ${!isToolbarVisible ? 'shadow-[0_20px_50px_rgba(0,0,0,0.08),0_10px_30px_rgba(0,0,0,0.04)]' : ''}
                     ${showListSettings
                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
                     : 'bg-white border-gray-200 text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-slate-50'
@@ -494,6 +558,27 @@ const MainContent = ({
                       </div>
                     </div>
 
+                    {/* Danger Zone */}
+                    <div>
+                      <div className="px-1 mb-3 text-[10px] font-bold text-slate-400 tracking-wider flex items-center justify-between">
+                        <span>Danger Zone</span>
+                        <div className="h-px flex-1 bg-slate-100 ml-3" />
+                      </div>
+                      <button
+                        onClick={() => {
+                          resetApp();
+                          setShowListSettings(false);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-bold bg-white text-rose-500 border border-slate-200 hover:border-rose-300 hover:text-rose-600 hover:bg-rose-50/50 transition-all"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
+                          <path d="M3 6h18"></path>
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                        </svg>
+                        Reset Application
+                      </button>
+                    </div>
+
                     {/* Guides Section (Only visible when main toolbar is not visible) */}
                     {!isToolbarVisible && (
                       <div>
@@ -504,7 +589,7 @@ const MainContent = ({
                         <div className="bg-slate-50 border border-slate-100 rounded-xl p-1 grid grid-cols-1 gap-1">
                           {[
                             { label: 'Type Grid', active: showAlignmentGuides, toggle: toggleAlignmentGuides },
-                            { label: 'Browser Render', active: showBrowserGuides, toggle: toggleBrowserGuides },
+                            { label: 'Linebox View', active: showBrowserGuides, toggle: toggleBrowserGuides },
                             { label: 'Fallback Colors', active: showFallbackColors, toggle: () => setShowFallbackColors(!showFallbackColors) }
                           ].map((guide) => (
                             <button
@@ -513,7 +598,7 @@ const MainContent = ({
                               className={`
                                 flex items-center justify-between px-3 py-2 rounded-lg text-[10px] font-bold transition-all
                                 ${guide.active
-                                  ? 'bg-white text-indigo-600 shadow-sm'
+                                  ? 'bg-white text-indigo-600'
                                   : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
                                 }
                               `}
@@ -530,14 +615,29 @@ const MainContent = ({
               )}
             </div>
           )}
-          <div className="grid gap-4 transition-all duration-300 ease-in-out" style={{ gridTemplateColumns: `repeat(${fontObject ? gridColumns : 1}, minmax(0, 1fr))` }}>
-            {visibleLanguagesList.map(lang => (
-              <LanguageCard
-                key={lang.id}
-                language={lang}
-                isHighlighted={highlitLanguageId === lang.id || (highlitLanguageId === 'primary' && primaryLanguages.includes(lang.id))}
-              />
-            ))}
+          <div className="grid gap-4 transition-all duration-300 ease-in-out relative" style={{ gridTemplateColumns: `repeat(${fontObject ? gridColumns : 1}, minmax(0, 1fr))` }}>
+            <AnimatePresence initial={false}>
+              {visibleLanguagesList.map(lang => (
+                <motion.div
+                  key={lang.id}
+                  layout
+                  className="h-full"
+                  style={{ zIndex: 1 }}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{
+                    opacity: 0,
+                    transition: { duration: 0.2 }
+                  }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <LanguageCard
+                    language={lang}
+                    isHighlighted={highlitLanguageId === lang.id || (highlitLanguageId === 'primary' && primaryLanguages.includes(lang.id))}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
       )}
@@ -563,8 +663,8 @@ const MainContent = ({
       {pendingFonts.length > 0 && (
         <FontLanguageModal
           pendingFonts={pendingFonts}
-          initialAssignments={parsedAssignments}
-          onConfirm={handleAssignmentsConfirm}
+          initialMappings={parsedMappings}
+          onConfirm={handleMappingsConfirm}
           onCancel={() => { setPendingFonts([]); setPendingFileMap(null); cancelImport(); }}
         />
       )}
@@ -575,7 +675,6 @@ const MainContent = ({
           onClose={() => setActiveConfigModal(null)}
           onImport={handleImport}
           onExport={handleExport}
-          onTsExport={handleTsExport}
         />
       )}
 
@@ -588,12 +687,16 @@ function App() {
   const [sidebarMode, setSidebarMode] = useState('main');
   const [previewMode, setPreviewMode] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState(''); // New search state
   const [highlitLanguageId, setHighlitLanguageId] = useState(null);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [addLanguageGroupFilter, setAddLanguageGroupFilter] = useState(null);
   const [showLanguageSelector, setShowLanguageSelector] = useState(false);
   const [activeConfigModal, setActiveConfigModal] = useState(null);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
+
+  const { resetApp, isAppResetting } = useTypo();
 
   // Live Preview Mode
   if (previewMode) {
@@ -606,79 +709,88 @@ function App() {
   };
 
   const handleResetApp = async () => {
-    await PersistenceService.clear();
-    window.location.reload();
+    await resetApp();
   };
 
   return (
     <ErrorBoundary>
-      <TypoProvider>
-        <div className="flex min-h-screen w-full">
-          {/* LEFT SIDEBAR: Show only when NOT in header mode */}
-          {sidebarMode !== 'headers' && (
-            <SideBar
-              sidebarMode={sidebarMode}
-              setSidebarMode={setSidebarMode}
-              previewMode={previewMode}
-              setPreviewMode={setPreviewMode}
-              selectedGroup={selectedGroup}
-              onSelectGroup={setSelectedGroup}
-              onAddLanguage={handleAddLanguage}
-              highlitLanguageId={highlitLanguageId}
-              setHighlitLanguageId={setHighlitLanguageId}
-              onManageLanguages={() => setShowLanguageSelector(true)}
-              onOpenSettings={(mode) => setActiveConfigModal(mode)}
-              onResetApp={() => setShowResetConfirm(true)}
-            />
-          )}
-
-          <MainContent
+      <div className="flex min-h-screen w-full">
+        {/* LEFT SIDEBAR: Show only when NOT in header mode */}
+        {sidebarMode !== 'headers' && (
+          <SideBar
             sidebarMode={sidebarMode}
             setSidebarMode={setSidebarMode}
+            previewMode={previewMode}
+            setPreviewMode={setPreviewMode}
             selectedGroup={selectedGroup}
-            setSelectedGroup={setSelectedGroup}
+            onSelectGroup={setSelectedGroup}
             onAddLanguage={handleAddLanguage}
-            showLanguageModal={showLanguageModal}
-            setShowLanguageModal={setShowLanguageModal}
-            addLanguageGroupFilter={addLanguageGroupFilter}
-            setAddLanguageGroupFilter={setAddLanguageGroupFilter}
             highlitLanguageId={highlitLanguageId}
             setHighlitLanguageId={setHighlitLanguageId}
-            setPreviewMode={setPreviewMode}
-            activeConfigModal={activeConfigModal}
-            setActiveConfigModal={setActiveConfigModal}
-          // showResetConfirm and setShowResetConfirm are no longer needed here as App handles the modal
+            onManageLanguages={() => setShowLanguageSelector(true)}
+            onOpenSettings={(mode) => setActiveConfigModal(mode)}
+            onResetApp={() => setShowResetConfirm(true)}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            expandedGroups={expandedGroups}
+            setExpandedGroups={setExpandedGroups}
           />
-
-          {/* RIGHT SIDEBAR: Show only when IN header mode */}
-          {sidebarMode === 'headers' && (
-            <SideBar
-              sidebarMode={sidebarMode}
-              setSidebarMode={setSidebarMode} // Pass same props
-              previewMode={previewMode}
-              setPreviewMode={setPreviewMode}
-              selectedGroup={selectedGroup}
-              onSelectGroup={setSelectedGroup}
-              onAddLanguage={handleAddLanguage}
-              highlitLanguageId={highlitLanguageId}
-              setHighlitLanguageId={setHighlitLanguageId}
-              onManageLanguages={() => setShowLanguageSelector(true)}
-              onOpenSettings={(mode) => setActiveConfigModal(mode)}
-              onResetApp={() => setShowResetConfirm(true)}
-            />
-          )}
-        </div>
-
-        {showLanguageSelector && (
-          <LanguageSelectorModal onClose={() => setShowLanguageSelector(false)} />
         )}
 
-        <ResetConfirmModal
-          isOpen={showResetConfirm}
-          onClose={() => setShowResetConfirm(false)}
-          onConfirm={handleResetApp}
+        <MainContent
+          sidebarMode={sidebarMode}
+          setSidebarMode={setSidebarMode}
+          selectedGroup={selectedGroup}
+          setSelectedGroup={setSelectedGroup}
+          onAddLanguage={handleAddLanguage}
+          showLanguageModal={showLanguageModal}
+          setShowLanguageModal={setShowLanguageModal}
+          addLanguageGroupFilter={addLanguageGroupFilter}
+          setAddLanguageGroupFilter={setAddLanguageGroupFilter}
+          highlitLanguageId={highlitLanguageId}
+          setHighlitLanguageId={setHighlitLanguageId}
+          setPreviewMode={setPreviewMode}
+          activeConfigModal={activeConfigModal}
+          setActiveConfigModal={setActiveConfigModal}
+          searchQuery={searchQuery}
+          expandedGroups={expandedGroups}
+        // showResetConfirm and setShowResetConfirm are no longer needed here as App handles the modal
         />
-      </TypoProvider>
+
+        {/* RIGHT SIDEBAR: Show only when IN header mode */}
+        {sidebarMode === 'headers' && (
+          <SideBar
+            sidebarMode={sidebarMode}
+            setSidebarMode={setSidebarMode} // Pass same props
+            previewMode={previewMode}
+            setPreviewMode={setPreviewMode}
+            selectedGroup={selectedGroup}
+            onSelectGroup={setSelectedGroup}
+            onAddLanguage={handleAddLanguage}
+            highlitLanguageId={highlitLanguageId}
+            setHighlitLanguageId={setHighlitLanguageId}
+            onManageLanguages={() => setShowLanguageSelector(true)}
+            onOpenSettings={(mode) => setActiveConfigModal(mode)}
+            onResetApp={() => setShowResetConfirm(true)}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            expandedGroups={expandedGroups}
+            setExpandedGroups={setExpandedGroups}
+          />
+        )}
+      </div>
+
+      {showLanguageSelector && (
+        <LanguageSelectorModal onClose={() => setShowLanguageSelector(false)} />
+      )}
+
+      <ResetConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={handleResetApp}
+      />
+
+      {isAppResetting && <ResetLoadingScreen />}
     </ErrorBoundary>
   );
 }

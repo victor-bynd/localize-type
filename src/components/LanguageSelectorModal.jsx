@@ -10,7 +10,7 @@ const LanguageSelectorModal = ({ onClose }) => {
         toggleLanguageVisibility,
         showAllLanguages,
         hideAllLanguages,
-        resetVisibleLanguages,
+
         primaryLanguages, // New
         togglePrimaryLanguage // New
     } = useTypo();
@@ -26,7 +26,7 @@ const LanguageSelectorModal = ({ onClose }) => {
     }, [onClose]);
 
     return (
-        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-50 p-4" onClick={onClose}>
+        <div className="fixed inset-0 bg-black/50 flex items-start justify-center z-[100] p-4" onClick={onClose}>
             <div
                 className="bg-white rounded-xl shadow-2xl w-full max-w-3xl mt-12 overflow-hidden flex flex-col max-h-[85vh]"
                 onClick={(e) => e.stopPropagation()}
@@ -67,12 +67,6 @@ const LanguageSelectorModal = ({ onClose }) => {
                         >
                             Select none
                         </button>
-                        <button
-                            onClick={resetVisibleLanguages}
-                            className="px-3 py-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
-                        >
-                            Reset
-                        </button>
                     </div>
                 </div>
 
@@ -97,10 +91,6 @@ const LanguageSelectorModal = ({ onClose }) => {
             </div>
         </div>
     );
-};
-
-LanguageSelectorModal.propTypes = {
-    onClose: PropTypes.func.isRequired
 };
 
 LanguageSelectorModal.propTypes = {

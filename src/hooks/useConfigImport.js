@@ -6,10 +6,10 @@ export const useConfigImport = () => {
     const { restoreConfiguration, fontStyles, batchAddConfiguredLanguages } = useTypo();
     const [missingFonts, setMissingFonts] = useState(null);
     const [existingFiles, setExistingFiles] = useState([]);
-    const [parsedAssignments, setParsedAssignments] = useState({});
+    const [parsedMappings, setParsedMappings] = useState({});
     const [pendingConfig, setPendingConfig] = useState(null);
 
-    const extractAssignments = (rawConfig) => {
+    const extractMappings = (rawConfig) => {
         const data = rawConfig.data || rawConfig;
         const extracted = {};
 
@@ -26,7 +26,7 @@ export const useConfigImport = () => {
                 }
             });
 
-            const addAssignment = (fontId, langId) => {
+            const addMapping = (fontId, langId) => {
                 const info = idsToInfo[fontId];
                 if (!info) return;
 
@@ -38,10 +38,10 @@ export const useConfigImport = () => {
             if (style.fallbackFontOverrides) {
                 Object.entries(style.fallbackFontOverrides).forEach(([langId, val]) => {
                     if (typeof val === 'string') {
-                        addAssignment(val, langId);
+                        addMapping(val, langId);
                     } else if (typeof val === 'object' && val !== null) {
                         Object.values(val).forEach(targetId => {
-                            addAssignment(targetId, langId);
+                            addMapping(targetId, langId);
                         });
                     }
                 });
@@ -50,7 +50,7 @@ export const useConfigImport = () => {
             // Process Primary Overrides
             if (style.primaryFontOverrides) {
                 Object.entries(style.primaryFontOverrides).forEach(([langId, fontId]) => {
-                    addAssignment(fontId, langId);
+                    addMapping(fontId, langId);
                 });
             }
         }
@@ -87,10 +87,10 @@ export const useConfigImport = () => {
             data = ConfigService.normalizeConfig(rawConfig);
             console.log("Normalized data:", data);
 
-            // Extract assignments immediately when validating
-            const assignments = extractAssignments(rawConfig);
-            if (Object.keys(assignments).length > 0) {
-                setParsedAssignments(assignments);
+            // Extract mappings immediately when validating
+            const mappings = extractMappings(rawConfig);
+            if (Object.keys(mappings).length > 0) {
+                setParsedMappings(mappings);
             }
 
         } catch (e) {
@@ -183,7 +183,7 @@ export const useConfigImport = () => {
         setMissingFonts(null);
         setExistingFiles([]);
         setPendingConfig(null);
-        setParsedAssignments({});
+        setParsedMappings({});
     };
 
     return {
@@ -192,6 +192,6 @@ export const useConfigImport = () => {
         existingFiles,
         resolveMissingFonts: handleResolveMissingFonts,
         cancelImport,
-        parsedAssignments // Expose this
+        parsedMappings // Expose this
     };
 };
