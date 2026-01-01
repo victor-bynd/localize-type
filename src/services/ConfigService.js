@@ -26,6 +26,7 @@ export const ConfigService = {
             showFallbackColors,
             showAlignmentGuides,
             showBrowserGuides,
+            showFallbackOrder,
             appName = 'localize-type',
             DEFAULT_PALETTE
         } = state;
@@ -62,7 +63,8 @@ export const ConfigService = {
             gridColumns,
             showFallbackColors,
             showAlignmentGuides,
-            showBrowserGuides
+            showBrowserGuides,
+            showFallbackOrder
         };
 
         return {

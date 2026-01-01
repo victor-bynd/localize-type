@@ -384,14 +384,18 @@ const LanguageCard = ({ language, isHighlighted }) => {
         if (!fallbackOverrideFontId || fallbackOverrideFontId === 'legacy') return null;
         const fonts = getFontsForStyle(activeMetricsStyleId) || [];
 
+        let foundFont = null;
+
         if (typeof fallbackOverrideFontId === 'string') {
-            return fonts.find(f => f.id === fallbackOverrideFontId);
+            foundFont = fonts.find(f => f.id === fallbackOverrideFontId);
         } else if (typeof fallbackOverrideFontId === 'object') {
             // Pick the first one for the color indicator/badge logic
             const firstId = Object.values(fallbackOverrideFontId)[0];
-            return fonts.find(f => f.id === firstId);
+            foundFont = fonts.find(f => f.id === firstId);
         }
-        return null;
+
+        if (foundFont && foundFont.hidden) return null;
+        return foundFont;
     }, [fallbackOverrideFontId, activeMetricsStyleId, getFontsForStyle]);
 
     const currentFallbackLabel = useMemo(() => {
@@ -537,30 +541,68 @@ const LanguageCard = ({ language, isHighlighted }) => {
                                 <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
                             </svg>
 
-                            {/* Mapped Font */}
-                            {fallbackOverrideFontId !== 'legacy' && currentFallbackLabel && (
-                                <>
-                                    <span
-                                        className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide max-w-[200px] truncate inline-block border"
-                                        style={currentFallbackFont?.color ? {
-                                            backgroundColor: currentFallbackFont.color + '1A', // ~10% opacity
-                                            color: currentFallbackFont.color,
-                                            borderColor: currentFallbackFont.color + '40', // ~25% opacity
-                                        } : {
-                                            backgroundColor: '#EFF6FF', // blue-50
-                                            color: '#2563EB', // blue-600
-                                            borderColor: '#DBEAFE' // blue-100
-                                        }}
-                                        title={`Mapped to: ${currentFallbackLabel}`}
-                                    >
-                                        {currentFallbackLabel}
-                                    </span>
+                            {/* Mapped / Auto Font */}
+                            {fallbackOverrideFontId !== 'legacy' && currentFallbackLabel && (() => {
+                                // Resolve effective font for color/style
+                                // If specifically mapped font is valid, use it.
+                                // If NOT mapped, OR mapped font is missing/invalid (broken link), fall back to Auto stack.
+                                let effectiveFont = currentFallbackFont;
 
-                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-slate-300 flex-shrink-0">
-                                        <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                                    </svg>
-                                </>
-                            )}
+                                if (!effectiveFont) {
+                                    // Auto mode OR Broken Mapping: Find the first font in the stack
+                                    const realFallbacks = metricsFallbackFontStack.filter(f => f.fontId !== 'legacy');
+                                    if (realFallbacks.length > 0) {
+                                        const fonts = getFontsForStyle(activeMetricsStyleId) || [];
+                                        effectiveFont = fonts.find(f => f.id === realFallbacks[0].fontId);
+                                    }
+                                }
+
+                                // Treat as mapped ONLY if we have an override ID AND the font actually exists.
+                                // This handles the case where a mapping exists to a deleted font - we show it as Auto/Global.
+                                const isMapped = !!fallbackOverrideFontId && !!currentFallbackFont;
+
+                                return (
+                                    <>
+                                        <div
+                                            className="flex items-center gap-1.5 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase tracking-wide max-w-[200px]"
+                                            style={effectiveFont?.color ? {
+                                                backgroundColor: effectiveFont.color + '1A', // ~10% opacity
+                                                color: effectiveFont.color,
+                                                borderColor: effectiveFont.color + '40', // ~25% opacity
+                                            } : {
+                                                backgroundColor: '#EFF6FF', // blue-50
+                                                color: '#2563EB', // blue-600
+                                                borderColor: '#DBEAFE' // blue-100
+                                            }}
+                                            title={isMapped ? `Mapped to: ${currentFallbackLabel}` : `Using Global Fallback: ${currentFallbackLabel}`}
+                                        >
+                                            {/* Icon */}
+                                            {isMapped ? (
+                                                // Pin Icon (Mapped)
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 flex-shrink-0 opacity-70">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                                </svg>
+                                            ) : (
+                                                // Unpin Icon (Unmapped/Global) - "Unmap" style
+                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3 h-3 flex-shrink-0 opacity-70">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18" />
+                                                </svg>
+                                            )}
+
+                                            <span className="truncate">
+                                                {currentFallbackLabel}
+                                            </span>
+                                        </div>
+
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3 text-slate-300 flex-shrink-0">
+                                            <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+                                        </svg>
+                                    </>
+                                );
+                            })()}
 
                             {/* System Fallback */}
                             <span

@@ -90,6 +90,8 @@ const SidebarLanguageList = ({
     const isSidebarInteraction = React.useRef(false); // Ref to track source of change
 
     // 3. Effect to Scroll to Active Language
+    const lastScrolledId = React.useRef(null);
+
     useEffect(() => {
         // Determine the ID of the language we want to scroll to
         // If activeTab is 'primary', we scroll to the first primary language or English
@@ -113,11 +115,17 @@ const SidebarLanguageList = ({
 
         if (!targetLangId || targetLangId === 'ALL') return;
 
+        const hasChanged = targetLangId !== lastScrolledId.current;
+        lastScrolledId.current = targetLangId;
+
         // SKIP SCROLL if this update was triggered by clicking the sidebar itself
         if (isSidebarInteraction.current) {
             isSidebarInteraction.current = false; // Reset flag
             return;
         }
+
+        // Only scroll/expand if the target has actually changed
+        if (!hasChanged) return;
 
         // Find the language object to get its group
         const langConfig = languagesData.find(l => l.id === targetLangId);
@@ -131,12 +139,28 @@ const SidebarLanguageList = ({
             });
 
             // 2. Scroll into view (with a small delay to allow expansion render)
-            setTimeout(() => {
+            // Retry mechanism ensures we catch the element even if render is delayed
+            let attempts = 0;
+            const maxAttempts = 10; // 500ms max
+
+            // Clear potential previous interval
+            if (window._sidebarScrollInterval) clearInterval(window._sidebarScrollInterval);
+
+            window._sidebarScrollInterval = setInterval(() => {
                 const element = document.getElementById(`sidebar-lang-${targetLangId}`);
                 if (element) {
                     element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    clearInterval(window._sidebarScrollInterval);
+                    window._sidebarScrollInterval = null;
+                } else {
+                    attempts++;
+                    if (attempts >= maxAttempts) {
+                        clearInterval(window._sidebarScrollInterval);
+                        window._sidebarScrollInterval = null;
+                    }
                 }
-            }, 100);
+            }, 50);
+
         }
 
     }, [activeTab, highlitLanguageId, primaryLanguages, setExpandedGroups]);

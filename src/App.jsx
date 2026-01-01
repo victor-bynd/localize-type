@@ -173,6 +173,8 @@ const MainContent = ({
   }, [activeConfigTab, highlitLanguageId, setHighlitLanguageId, primaryLanguages]);
 
   // Centralized Scroll Logic
+  const lastMainScrolledId = useRef(null);
+
   useEffect(() => {
     // If we switched to ALL, maybe scroll to top or just do nothing?
     // User expectation: clicking 'ALL' usually resets view.
@@ -188,15 +190,46 @@ const MainContent = ({
     const primaryLangId = primaryLanguages[0] || 'en-US';
     const targetId = activeConfigTab === 'primary' ? primaryLangId : activeConfigTab;
 
-    // Small delay to ensure render (e.g. if switching groups simultaneously)
-    const timeoutId = setTimeout(() => {
+    if (targetId === lastMainScrolledId.current) return;
+    lastMainScrolledId.current = targetId;
+
+    // Use a retry mechanism to ensure the element exists before scrolling
+    let attempts = 0;
+    const maxAttempts = 10; // 500ms max wait
+
+    // Clear any previous interval
+    if (window._mainScrollInterval) clearInterval(window._mainScrollInterval);
+
+    window._mainScrollInterval = setInterval(() => {
       const element = document.getElementById(`language-card-${targetId}`);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Element found - scroll and clear
+        const headerOffset = 80; // Approximate header height + padding
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: "smooth"
+        });
+
+        clearInterval(window._mainScrollInterval);
+        window._mainScrollInterval = null;
+      } else {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          clearInterval(window._mainScrollInterval);
+          window._mainScrollInterval = null;
+        }
       }
     }, 50);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (window._mainScrollInterval) {
+        clearInterval(window._mainScrollInterval);
+        window._mainScrollInterval = null;
+      }
+    };
   }, [activeConfigTab, primaryLanguages]);
 
   const { getExportConfiguration, addLanguageSpecificFallbackFont, loadFont } = useTypo();
@@ -641,7 +674,6 @@ const MainContent = ({
               {visibleLanguagesList.map(lang => (
                 <motion.div
                   key={lang.id}
-                  layout
                   className="h-full"
                   style={{ zIndex: 1 }}
                   initial={{ opacity: 0, scale: 0.9 }}
