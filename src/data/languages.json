@@ -1,167 +1,321 @@
 [
   {
     "id": "en-US",
-    "name": "English (Latin Basic)",
-    "script": "Latn",
-    "pangram": "Snapchat Hits 250 Million Monthly Active Users"
+    "name": "English - US",
+    "script": "Latn"
   },
   {
-    "id": "lt-LT",
-    "name": "Lithuanian (Latin Extended)",
-    "script": "Latn",
-    "pangram": "Snapchat sasniedz 250 miljonus ikmēneša aktīvo lietotāju"
+    "id": "en-GB",
+    "name": "English - UK",
+    "script": "Latn"
   },
   {
-    "id": "vi-VN",
-    "name": "Vietnamese (Stacked Diacritics)",
-    "script": "Latn",
-    "pangram": "Snapchat đạt 250 triệu người dùng hoạt động hằng tháng"
+    "id": "es",
+    "name": "Spanish (Español)",
+    "script": "Latn"
   },
   {
     "id": "es-ES",
-    "name": "Spanish (Latin)",
-    "script": "Latn",
-    "pangram": "El veloz murciélago hindú comía feliz cardillo y kiwi"
+    "name": "Spanish - Spain (Español - España)",
+    "script": "Latn"
+  },
+  {
+    "id": "es-MX",
+    "name": "Spanish - Mexico (Español - México)",
+    "script": "Latn"
+  },
+  {
+    "id": "es-AR",
+    "name": "Spanish - Argentina (Español - Argentina)",
+    "script": "Latn"
   },
   {
     "id": "fr-FR",
-    "name": "French (Latin)",
-    "script": "Latn",
-    "pangram": "Portez ce vieux whisky au juge blond qui fume"
+    "name": "French - France (Français - France)",
+    "script": "Latn"
   },
   {
-    "id": "tr-TR",
-    "name": "Turkish (Latin)",
-    "script": "Latn",
-    "pangram": "Pijamalı hasta yağız şoföre çabucak güvendi"
+    "id": "fr-CA",
+    "name": "French - Canada (Français - Canada)",
+    "script": "Latn"
   },
   {
-    "id": "id-ID",
-    "name": "Indonesian (Latin)",
-    "script": "Latn",
-    "pangram": "Muharjo seorang xenofobia universal yang takut pada warga jazirah"
+    "id": "pt-BR",
+    "name": "Portuguese - Brazil (Português - Brasil)",
+    "script": "Latn"
   },
   {
-    "id": "el-GR",
-    "name": "Greek (Greek Script)",
-    "script": "Grek",
-    "pangram": "Το Snapchat φτάνει τους 250 εκατομμύρια μηνιαίους ενεργούς χρήστες"
+    "id": "pt-PT",
+    "name": "Portuguese - Portugal (Português - Portugal)",
+    "script": "Latn"
   },
   {
-    "id": "ru-RU",
-    "name": "Russian (Cyrillic Script)",
-    "script": "Cyrl",
-    "pangram": "Snapchat хиты 250 миллион ежемесячно"
+    "id": "de-DE",
+    "name": "German - Germany (Deutsch - Deutschland)",
+    "script": "Latn"
   },
   {
-    "id": "bg-BG",
-    "name": "Bulgarian (Cyrillic)",
-    "script": "Cyrl",
-    "pangram": "Я, пазачът Вальо уж бди, а скришом хапва кюфтенца"
+    "id": "it-IT",
+    "name": "Italian (Italiano)",
+    "script": "Latn"
   },
   {
-    "id": "ar-SA",
-    "name": "Arabic (Right-to-Left)",
-    "script": "Arab",
-    "dir": "rtl",
-    "pangram": "سناب شات يصل إلى 250 مليون مستخدم نشط شهريًا"
+    "id": "nl-NL",
+    "name": "Dutch - Netherlands (Nederlands - Nederland)",
+    "script": "Latn"
   },
   {
-    "id": "fa-IR",
-    "name": "Persian (Persio-Arabic)",
-    "script": "Arab",
-    "dir": "rtl",
-    "pangram": "اسنپ\u200cچت به ۲۵۰ میلیون کاربر فعال ماهانه رسید."
+    "id": "zh-Hans",
+    "name": "Chinese Simplified (中文简体)",
+    "script": "Hans"
   },
   {
-    "id": "ur-PK",
-    "name": "Urdu (Arabic Script)",
-    "script": "Arab",
-    "dir": "rtl",
-    "pangram": "ٹھنڈ میں، ایک قحط زدہ گاؤں سے گذرتے وقت ایک چڑچڑے، باأثر و فارغ شخص کو بعض جل پری نما اژدہے نظر آئے۔"
-  },
-  {
-    "id": "hi-IN",
-    "name": "Hindi (Devanagari)",
-    "script": "Deva",
-    "pangram": "स्नैपचैट के मंथली एक्टिव यूज़र्स की संख्या 250 मिलियन हुई"
-  },
-  {
-    "id": "mr-IN",
-    "name": "Marathi (Devanagari)",
-    "script": "Deva",
-    "pangram": "तू कसा आहेस? मराठी फोंठ तपासणीसाठी हे एक उदाहरण वाक्य आहे."
-  },
-  {
-    "id": "bn-IN",
-    "name": "Bengali (Complex Indic)",
-    "script": "Beng",
-    "pangram": "Snapchat-এর মাসিক সক্রিয় ব্যবহারকারীর সংখ্যা ২৫০ মিলিয়নে পৌঁছেছে"
-  },
-  {
-    "id": "gu-IN",
-    "name": "Gujarati (Gujarati Script)",
-    "script": "Gujr",
-    "pangram": "સરળતા એ સાચા શ્રેષ્ઠતાની નિશાની છે"
-  },
-  {
-    "id": "pa-IN",
-    "name": "Punjabi (Gurmukhi)",
-    "script": "Guru",
-    "pangram": "ਉੜਾ ਐੜਾ ਈੜੀ ਸੱਸਾ ਹਾਹਾ ਕੱਕਾ ਖੱਖਾ ਗੱਗਾ ਘੱਘਾ ਙੰਙਾ"
-  },
-  {
-    "id": "ml-IN",
-    "name": "Malayalam (Malayalam Script)",
-    "script": "Mlym",
-    "pangram": "അഊ അം അഃ ക ഖ ഗ ഘ ങ ച ഛ ജ ഝ ഞ ട ഠ ഡ ഢ ണ ത ഥ ദ ധ ന പ ഫ ബ ഭ മ"
-  },
-  {
-    "id": "ta-IN",
-    "name": "Tamil (Tamil Script)",
-    "script": "Taml",
-    "pangram": "அனைவருக்கும் வணக்கம். தமிழ் எழுத்துக்கள் அனைத்தும் இதில் உள்ளன."
-  },
-  {
-    "id": "kn-IN",
-    "name": "Kannada (Indic Script)",
-    "script": "Knda",
-    "pangram": "Snapchat ತಿಂಗಳಿಗೆ 250 ಮಿಲಿಯನ್ ಸಕ್ರಿಯ ಬಳಕೆದಾರರನ್ನು ತಲುಪುತ್ತದೆ"
-  },
-  {
-    "id": "te-IN",
-    "name": "Telugu (Indic Script)",
-    "script": "Telu",
-    "pangram": "Snapchat నెలవారీ క్రియాశీల వినియోగదారులు 250 మిలియన్లకు చేరుకుంది"
-  },
-  {
-    "id": "th-TH",
-    "name": "Thai (Stacked Diacritics)",
-    "script": "Thai",
-    "pangram": "Snapchat มีผู้ใช้งานประจำเดือนถึง 250 ล้านคน"
-  },
-  {
-    "id": "zh-CN",
-    "name": "Chinese (Simplified)",
-    "script": "Hans",
-    "pangram": "Snapchat 月活跃用户数达到 2.5 亿。"
-  },
-  {
-    "id": "zh-TW",
-    "name": "Chinese (Traditional)",
-    "script": "Hant",
-    "pangram": "Snapchat 的月活躍用戶數量達到 2.5 億。"
+    "id": "zh-Hant",
+    "name": "Chinese Traditional (中文繁體)",
+    "script": "Hant"
   },
   {
     "id": "ja-JP",
-    "name": "Japanese (Kanji/Kana)",
-    "script": "Jpan",
-    "pangram": "Snapchatの月間アクティブユーザー数が2億5000万人に達した。"
+    "name": "Japanese (日本語)",
+    "script": "Jpan"
   },
   {
     "id": "ko-KR",
-    "name": "Korean (Hangul)",
-    "script": "Kore",
-    "pangram": "스냅챗 월간 활성 사용자가 2억 5천만 명에 도달했다."
+    "name": "Korean (한국어)",
+    "script": "Kore"
+  },
+  {
+    "id": "ar",
+    "name": "Arabic (العربية)",
+    "script": "Arab",
+    "dir": "rtl"
+  },
+  {
+    "id": "he-IL",
+    "name": "Hebrew (עברית)",
+    "script": "Hebr",
+    "dir": "rtl"
+  },
+  {
+    "id": "fa-IR",
+    "name": "Persian (فارسی)",
+    "script": "Arab",
+    "dir": "rtl"
+  },
+  {
+    "id": "ur-PK",
+    "name": "Urdu (اردو)",
+    "script": "Arab",
+    "dir": "rtl"
+  },
+  {
+    "id": "ru-RU",
+    "name": "Russian (Русский)",
+    "script": "Cyrl"
+  },
+  {
+    "id": "uk-UA",
+    "name": "Ukrainian (Українська)",
+    "script": "Cyrl"
+  },
+  {
+    "id": "pl-PL",
+    "name": "Polish (Polski)",
+    "script": "Latn"
+  },
+  {
+    "id": "tr-TR",
+    "name": "Turkish (Türkçe)",
+    "script": "Latn"
+  },
+  {
+    "id": "cs-CZ",
+    "name": "Czech (Čeština)",
+    "script": "Latn"
+  },
+  {
+    "id": "hu-HU",
+    "name": "Hungarian (Magyar)",
+    "script": "Latn"
+  },
+  {
+    "id": "ro-RO",
+    "name": "Romanian (Română)",
+    "script": "Latn"
+  },
+  {
+    "id": "bg-BG",
+    "name": "Bulgarian (Български)",
+    "script": "Cyrl"
+  },
+  {
+    "id": "kk-KZ",
+    "name": "Kazakh (Қазақша)",
+    "script": "Cyrl"
+  },
+  {
+    "id": "th-TH",
+    "name": "Thai - Thailand (ภาษาไทย - ประเทศไทย)",
+    "script": "Thai"
+  },
+  {
+    "id": "vi-VN",
+    "name": "Vietnamese (Tiếng Việt)",
+    "script": "Latn"
+  },
+  {
+    "id": "id-ID",
+    "name": "Indonesian (Bahasa Indonesia)",
+    "script": "Latn"
+  },
+  {
+    "id": "hi-IN",
+    "name": "Hindi (हिन्दी)",
+    "script": "Deva"
+  },
+  {
+    "id": "bn-BD",
+    "name": "Bengali - Bangladesh (বাংলা - বাংলাদেশ)",
+    "script": "Beng"
+  },
+  {
+    "id": "bn-IN",
+    "name": "Bengali - India (বাংলা - ভারত)",
+    "script": "Beng"
+  },
+  {
+    "id": "ta-IN",
+    "name": "Tamil (தமிழ்)",
+    "script": "Taml"
+  },
+  {
+    "id": "te-IN",
+    "name": "Telugu (తెలుగు)",
+    "script": "Telu"
+  },
+  {
+    "id": "pa-IN",
+    "name": "Punjabi - Gurmukhi (ਪੰਜਾਬੀ)",
+    "script": "Guru"
+  },
+  {
+    "id": "ms-MY",
+    "name": "Malay (Bahasa Melayu)",
+    "script": "Latn"
+  },
+  {
+    "id": "tl-PH",
+    "name": "Filipino (Tagalog)",
+    "script": "Latn"
+  },
+  {
+    "id": "sw-KE",
+    "name": "Swahili (Kiswahili)",
+    "script": "Latn"
+  },
+  {
+    "id": "am-ET",
+    "name": "Amharic (አማርኛ)",
+    "script": "Ethi"
+  },
+  {
+    "id": "zu-ZA",
+    "name": "Zulu (isiZulu)",
+    "script": "Latn"
+  },
+  {
+    "id": "yo-NG",
+    "name": "Yoruba (Yorùbá)",
+    "script": "Latn"
+  },
+  {
+    "id": "af-ZA",
+    "name": "Afrikaans",
+    "script": "Latn"
+  },
+  {
+    "id": "sv-SE",
+    "name": "Swedish (Svenska)",
+    "script": "Latn"
+  },
+  {
+    "id": "da-DK",
+    "name": "Danish (Dansk)",
+    "script": "Latn"
+  },
+  {
+    "id": "nb-NO",
+    "name": "Norwegian - Bokmål (Norsk - Bokmål)",
+    "script": "Latn"
+  },
+  {
+    "id": "fi-FI",
+    "name": "Finnish (Suomi)",
+    "script": "Latn"
+  },
+  {
+    "id": "et-EE",
+    "name": "Estonian (Eesti)",
+    "script": "Latn"
+  },
+  {
+    "id": "lv-LV",
+    "name": "Latvian (Latviešu)",
+    "script": "Latn"
+  },
+  {
+    "id": "lt-LT",
+    "name": "Lithuanian (Lietuvių)",
+    "script": "Latn"
+  },
+  {
+    "id": "el-GR",
+    "name": "Greek (Ελληνικά)",
+    "script": "Grek"
+  },
+  {
+    "id": "gu-IN",
+    "name": "Gujarati (ગુજરાતી)",
+    "script": "Gujr"
+  },
+  {
+    "id": "kn-IN",
+    "name": "Kannada - India (ಕನ್ನಡ - India)",
+    "script": "Knda"
+  },
+  {
+    "id": "ml-IN",
+    "name": "Malayalam (മലയാളം)",
+    "script": "Mlym"
+  },
+  {
+    "id": "ga-IE",
+    "name": "Irish (Éireannach)",
+    "script": "Latn"
+  },
+  {
+    "id": "mt-MT",
+    "name": "Maltese (Malti)",
+    "script": "Latn"
+  },
+  {
+    "id": "sk-SK",
+    "name": "Slovak (Slovenčina)",
+    "script": "Latn"
+  },
+  {
+    "id": "hr-HR",
+    "name": "Croatian (Hrvatski)",
+    "script": "Latn"
+  },
+  {
+    "id": "sl-SI",
+    "name": "Slovenian (Slovenščina)",
+    "script": "Latn"
+  },
+  {
+    "id": "mr-IN",
+    "name": "Marathi (मराठी)",
+    "script": "Deva"
   }
 ]

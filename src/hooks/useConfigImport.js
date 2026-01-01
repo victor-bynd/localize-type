@@ -3,16 +3,96 @@ import { useTypo } from '../context/useTypo';
 import { ConfigService } from '../services/ConfigService';
 
 export const useConfigImport = () => {
-    const { restoreConfiguration, fontStyles } = useTypo();
+    const { restoreConfiguration, fontStyles, batchAddConfiguredLanguages } = useTypo();
     const [missingFonts, setMissingFonts] = useState(null);
     const [existingFiles, setExistingFiles] = useState([]);
+    const [parsedMappings, setParsedMappings] = useState({});
     const [pendingConfig, setPendingConfig] = useState(null);
 
+    const extractMappings = (rawConfig) => {
+        const data = rawConfig.data || rawConfig;
+        const extracted = {};
+
+        if (data.fontStyles?.primary) {
+            const style = data.fontStyles.primary;
+            // Helper map: fontId -> { fileName, name }
+            const idsToInfo = {};
+            (style.fonts || []).forEach(f => {
+                if (f.id) {
+                    idsToInfo[f.id] = {
+                        fileName: f.fileName,
+                        name: f.name
+                    };
+                }
+            });
+
+            const addMapping = (fontId, langId) => {
+                const info = idsToInfo[fontId];
+                if (!info) return;
+
+                if (info.fileName) extracted[info.fileName] = langId;
+                if (info.name) extracted[info.name] = langId;
+            };
+
+            // Process Fallback Overrides
+            if (style.fallbackFontOverrides) {
+                Object.entries(style.fallbackFontOverrides).forEach(([langId, val]) => {
+                    if (typeof val === 'string') {
+                        addMapping(val, langId);
+                    } else if (typeof val === 'object' && val !== null) {
+                        Object.values(val).forEach(targetId => {
+                            addMapping(targetId, langId);
+                        });
+                    }
+                });
+            }
+
+            // Process Primary Overrides
+            if (style.primaryFontOverrides) {
+                Object.entries(style.primaryFontOverrides).forEach(([langId, fontId]) => {
+                    addMapping(fontId, langId);
+                });
+            }
+        }
+        return extracted;
+    };
+
     const validateAndRestore = async (rawConfig) => {
+        // ... (User Language List support checks remain same) ...
+        // Feature: Support User's Language List JSON { "languages": [ { "code": "..." } ] }
+        if (rawConfig.languages && Array.isArray(rawConfig.languages)) {
+            const langIds = rawConfig.languages
+                .map(l => l.code)
+                .filter(c => typeof c === 'string');
+
+            if (langIds.length > 0) {
+                batchAddConfiguredLanguages(langIds);
+                alert(`Enabled ${langIds.length} languages from list.`);
+                return;
+            }
+        }
+
+        // Feature: Support simple Language List import ["en-US", ...]
+        if (Array.isArray(rawConfig) && rawConfig.some(i => typeof i === 'string')) {
+            const langIds = rawConfig.filter(i => typeof i === 'string');
+            if (langIds.length > 0) {
+                batchAddConfiguredLanguages(langIds);
+                alert(`Enabled ${langIds.length} languages.`);
+                return;
+            }
+        }
+
         let data;
         try {
             data = ConfigService.normalizeConfig(rawConfig);
             console.log("Normalized data:", data);
+
+            // Extract mappings immediately when validating
+            const mappings = extractMappings(rawConfig);
+            if (Object.keys(mappings).length > 0) {
+                setParsedMappings(mappings);
+            }
+
         } catch (e) {
             console.error("Normalization error:", e);
             alert(`Config processing error: ${e.message}`);
@@ -37,7 +117,6 @@ export const useConfigImport = () => {
         };
 
         collectFromStyle(data.fontStyles?.primary);
-        collectFromStyle(data.fontStyles?.secondary);
 
         if (requiredFiles.size > 0) {
             const missingList = Array.from(requiredFiles);
@@ -48,8 +127,7 @@ export const useConfigImport = () => {
             // Helper to search for a font by filename in existing styles
             const findFontByFilename = (filename) => {
                 const allFonts = [
-                    ...(fontStyles.primary?.fonts || []),
-                    ...(fontStyles.secondary?.fonts || [])
+                    ...(fontStyles.primary?.fonts || [])
                 ];
                 return allFonts.find(f => f.fileName === filename && f.fontUrl);
             };
@@ -105,6 +183,7 @@ export const useConfigImport = () => {
         setMissingFonts(null);
         setExistingFiles([]);
         setPendingConfig(null);
+        setParsedMappings({});
     };
 
     return {
@@ -112,6 +191,7 @@ export const useConfigImport = () => {
         missingFonts,
         existingFiles,
         resolveMissingFonts: handleResolveMissingFonts,
-        cancelImport
+        cancelImport,
+        parsedMappings // Expose this
     };
 };

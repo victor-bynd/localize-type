@@ -10,24 +10,45 @@ const MissingFontsModal = ({ missingFonts, existingFiles = [], onResolve, onCanc
         }
     };
 
-    const isResolved = (filename) => {
-        return files.some(f => f.name === filename);
+    const isResolved = (fontName) => {
+        // Strict match or Fuzzy match
+        return files.some(f => {
+            if (f.name === fontName) return true;
+
+            // Fuzzy: if filename includes font name (e.g. "Brand Sans" in "BrandSans-Regular.ttf")
+            // Normalize both: remove spaces, lowercase
+            const normReq = fontName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const normFile = f.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            return normFile.includes(normReq);
+        });
     };
 
     const allResolved = missingFonts.every(isResolved);
 
     const handleConfirm = () => {
-        // Create map of filename -> file
-        const fileMap = {};
-        files.forEach(f => {
-            fileMap[f.name] = f;
+        // Create map of requestName -> matchedFile
+        // This is crucial: the app expects mapping from the REQUESTED 'filename' keys to the ACTUAL uploaded files.
+        const fileMap = {}; // requestedName -> file
+
+        missingFonts.forEach(req => {
+            const match = files.find(f => {
+                if (f.name === req) return true;
+                const normReq = req.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const normFile = f.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return normFile.includes(normReq);
+            });
+            if (match) {
+                fileMap[req] = match;
+            }
         });
+
         onResolve(fileMap);
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh]">
                 <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                     <h3 className="text-lg font-bold text-slate-800">Missing Fonts</h3>
                 </div>
@@ -95,14 +116,13 @@ const MissingFontsModal = ({ missingFonts, existingFiles = [], onResolve, onCanc
                     </button>
                     <button
                         onClick={handleConfirm}
-                        disabled={!allResolved}
                         className={`px-4 py-2 text-sm font-bold text-white rounded-lg transition-all shadow-sm
                             ${allResolved
                                 ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
-                                : 'bg-slate-300 cursor-not-allowed'}
+                                : 'bg-amber-500 hover:bg-amber-600 shadow-amber-200'}
                         `}
                     >
-                        Finish Import
+                        {allResolved ? 'Finish Import' : 'Continue with Missing'}
                     </button>
                 </div>
             </div>

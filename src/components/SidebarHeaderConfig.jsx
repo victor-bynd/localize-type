@@ -1,6 +1,7 @@
 import { useTypo } from '../context/useTypo';
+import InfoTooltip from './InfoTooltip';
 
-const SidebarHeaderConfig = () => {
+const SidebarHeaderConfig = ({ onBack }) => {
     const {
         headerStyles,
         updateHeaderStyle,
@@ -33,16 +34,31 @@ const SidebarHeaderConfig = () => {
     const hasAnyOverride = Object.values(headerOverrides).some(overrides => Object.keys(overrides).length > 0);
 
     return (
-        <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="w-80 flex flex-col gap-4 p-4 h-full overflow-y-auto bg-white animate-fade-in">
             {/* Header / Back Button */}
-            <div className="flex items-center justify-between pb-4">
-                <h3 className="font-bold text-slate-800 text-sm">Header Styles</h3>
-                <button
-                    onClick={resetAllHeaderStyles}
-                    className={`text-[10px] font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded transition-colors ${hasAnyOverride ? '' : 'invisible pointer-events-none'}`}
-                >
-                    Reset All
-                </button>
+            <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center gap-2">
+                    <div className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                        HEADER STYLES
+                    </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={resetAllHeaderStyles}
+                        className={`text-[10px] font-bold text-rose-500 hover:text-rose-700 bg-rose-50 hover:bg-rose-100 px-2.5 py-1.5 rounded-md transition-colors ${hasAnyOverride ? '' : 'invisible pointer-events-none'}`}
+                    >
+                        Reset All
+                    </button>
+                    <button
+                        onClick={onBack}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-md transition-colors flex items-center gap-1.5"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
+                            <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+                        </svg>
+                        <span>Close</span>
+                    </button>
+                </div>
             </div>
 
             {/* Base REM Setting */}
