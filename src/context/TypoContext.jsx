@@ -512,13 +512,16 @@ export const TypoProvider = ({ children }) => {
 
     // List of ALL languages that have any configuration (explicit or overrides)
     const allConfiguredLanguageIds = useMemo(() => {
-        return Array.from(new Set([
+        const idSet = new Set([
             ...visibleLanguageIds,
             ...(activeStyle.configuredLanguages || []),
             ...(activeStyle.primaryLanguages || []), // Include Primary Languages
             ...Object.keys(activeStyle.primaryFontOverrides || {}),
             ...Object.keys(activeStyle.fallbackFontOverrides || {})
-        ]));
+        ]);
+
+        // Return sorted by canonical order (as defined in languagesData)
+        return languages.map(l => l.id).filter(id => idSet.has(id));
     }, [visibleLanguageIds, activeStyle.configuredLanguages, activeStyle.primaryLanguages, activeStyle.primaryFontOverrides, activeStyle.fallbackFontOverrides]);
 
     // NEW: Strict mapping (Only explicit overrides, ignoring "Auto"/Inherit)
@@ -937,80 +940,37 @@ export const TypoProvider = ({ children }) => {
                 }
             }
 
-            // CHECK: Is this a global fallback that should be MOVED?
-            // Meaning: It is a valid fallback, NOT a clone, NOT already language specific, and HAS a font object (not system)
-            const isGlobalMoveable = originalFont.type === 'fallback'
-                && !originalFont.isClone
-                && !originalFont.isLangSpecific
-                && originalFont.fontObject;
+            // ALWAYS COPY/CLONE Logic (Standard):
+            // We no longer "Move" global fonts (removing them from global list) because it breaks
+            // other languages that might be using the global font, and prevents the "Shared" font concept.
 
-            if (isGlobalMoveable) {
-                // MOVE Logic:
-                // 1. Remove original font
-                nextFonts = nextFonts.filter(f => f.id !== originalFontId);
+            // Add the new font
+            nextFonts.push(newFont);
 
-                // 2. Add new font
-                nextFonts.push(newFont);
+            // Update the override map: ensure structure is { [langId]: { [originalFontId]: overrideId } }
+            const startOverrides = prev.fallbackFontOverrides || {};
 
-                // 3. Map Override (use newFont.id as key to signify Strict/Root mapping)
-                const startOverrides = prev.fallbackFontOverrides || {};
-                const currentLangOverrides = startOverrides[langId];
-                let nextLangOverrides = {};
+            // Get existing overrides for this language
+            const currentLangOverrides = startOverrides[langId];
+            let nextLangOverrides = {};
 
-                if (typeof currentLangOverrides === 'object' && currentLangOverrides !== null) {
-                    nextLangOverrides = { ...currentLangOverrides };
-                }
-
-                // Strictly map to itself (NewID -> NewID)
-                nextLangOverrides[newFontId] = newFontId;
-
-                // Also we should ensure we don't leave the old key (OriginalID) pointing to anything in THIS language
-                if (nextLangOverrides[originalFontId]) {
-                    delete nextLangOverrides[originalFontId];
-                }
-
-                const nextOverrides = {
-                    ...startOverrides,
-                    [langId]: nextLangOverrides
-                };
-
-                return {
-                    ...prev,
-                    fonts: nextFonts,
-                    fallbackFontOverrides: nextOverrides
-                };
-
-            } else {
-                // COPY/CLONE Logic (Standard):
-
-                // Add the new font
-                nextFonts.push(newFont);
-
-                // Update the override map: ensure structure is { [langId]: { [originalFontId]: overrideId } }
-                const startOverrides = prev.fallbackFontOverrides || {};
-
-                // Get existing overrides for this language
-                const currentLangOverrides = startOverrides[langId];
-                let nextLangOverrides = {};
-
-                if (typeof currentLangOverrides === 'object' && currentLangOverrides !== null) {
-                    nextLangOverrides = { ...currentLangOverrides };
-                }
-
-                // Add the new mapping
-                nextLangOverrides[originalFontId] = newFontId;
-
-                const nextOverrides = {
-                    ...startOverrides,
-                    [langId]: nextLangOverrides
-                };
-
-                return {
-                    ...prev,
-                    fonts: nextFonts,
-                    fallbackFontOverrides: nextOverrides
-                };
+            if (typeof currentLangOverrides === 'object' && currentLangOverrides !== null) {
+                nextLangOverrides = { ...currentLangOverrides };
             }
+
+            // Add the new mapping
+            nextLangOverrides[originalFontId] = newFontId;
+
+            const nextOverrides = {
+                ...startOverrides,
+                [langId]: nextLangOverrides
+            };
+
+            return {
+                ...prev,
+                fonts: nextFonts,
+                fallbackFontOverrides: nextOverrides
+            };
         });
     };
 
@@ -1234,8 +1194,8 @@ export const TypoProvider = ({ children }) => {
             nextFonts.push(newFont);
             nextPrimaryOverrides[langId] = newFontId;
 
-            // 4. REMOVE SOURCE FONT (Exclude it from global list)
-            nextFonts = nextFonts.filter(f => f.id !== fontId);
+            // 4. DO NOT REMOVE SOURCE FONT (Keep it in global list)
+            // nextFonts = nextFonts.filter(f => f.id !== fontId);
 
             return {
                 ...prev,
@@ -2579,6 +2539,7 @@ export const TypoProvider = ({ children }) => {
                         if (validated.showFallbackColors !== undefined) setShowFallbackColors(validated.showFallbackColors);
                         if (validated.showAlignmentGuides !== undefined) setShowAlignmentGuides(validated.showAlignmentGuides);
                         if (validated.showBrowserGuides !== undefined) setShowBrowserGuides(validated.showBrowserGuides);
+                        if (validated.showFallbackOrder !== undefined) setShowFallbackOrder(validated.showFallbackOrder);
 
                         // Restore Font Styles
                         if (validated.fontStyles) {
@@ -2651,6 +2612,7 @@ export const TypoProvider = ({ children }) => {
                 showFallbackColors,
                 showAlignmentGuides,
                 showBrowserGuides,
+                showFallbackOrder,
                 appName: 'localize-type',
                 DEFAULT_PALETTE
             };
